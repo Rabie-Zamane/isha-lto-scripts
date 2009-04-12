@@ -6,7 +6,7 @@ The format of the xml index file stored at the start of each tape
 
 
 <index id="1234" timestamp="2009-10-29T17:23:11">
-   <tar session-id="n162-1" device-id="v1" position="2" block="2983728" md5="9dsjdgeb3...>
+   <tar session-id="n162-1" device-id="v1" position="2" block="2983728" md5="9dsjdgeb3..">
       <video id="n1271" block="2983734" md5="edh47..." size="23292782">
          <supplementary-tar block="21542772" md5="7dhd743679..." />
       </video>
