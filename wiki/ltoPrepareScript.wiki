@@ -1,0 +1,18 @@
+#The script run to prepare the files for being archived to lto tape
+
+= Introduction =
+
+This script performs the following functions:
+  * Updates xml database with new media ids and selected additional media metadata
+  * Creates tar files (on staging disk)
+  * Creates xml index file (includes calculating md5 hashes and block offsets for each file)
+  * Creates preview video files
+  * Creates PAR2 error correction files
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
