@@ -1,0 +1,48 @@
+#summary The script run to prepare the files for being archived to lto tape
+
+= Introduction =
+
+This script performs the following functions (for each session-device folder):
+  * Updates xml database with new media ids and selected additional media metadata
+  * Creates PAR2 error correction files
+  * Creates tar files (on staging disk)
+  * Creates session-device "tar" xml element (includes calculating md5 hashes and block offsets for each file). This will be the tar element part of the main lto index xml file.
+  * Creates preview video files
+ 
+
+= Details =
+
+Step by step script functions
+
+Note: As a first step, the user is expected to have created the necessary event/sessions in the transcript studio application and made a note of the session-ids.
+
+The script is called with 2 arguments: (session-id, device-id).
+
+The script must be called in a directory containing either a single "BPAV" folder (new videos), or a collection of .mov files (old videos). The script will perform different routines based on which it finds.
+
+==New Video routine==
+
+Connect to xml db and issue xquery to get the metadata.xml file (containing event/session metadata for the archive)
+
+The following steps will be performed for each MP4 file within the BPAV file:
+
+Step 1: Connect to the xml db via an http request and execute a stored xquery to retrieve the next available id (integer-part) for the event-type (as specified in the session-id).
+
+Step 2: Parse some additional metadata from the "raw" sony xml file and connect to xml db again and create <media> xml element in session file. (Note: this will require user authentication - so we should handle this somehow)
+
+Step 3: Copy the MP4 file to the current dir and rename it with the new id (e.g. vid-p123.mp4) 
+
+Step 4: Generate the PAR2 files
+
+Step 5: Create a n1234.supplementary.tar file containing the PAR2 files and the "raw" sony xdcam xml file (not renamed). 
+
+Step 6: Generate the low resolution preview file
+
+Step 7: Calculate the md5sum and filesize and store in a multi-dim array.
+
+Now - use "star" to create a "pax" archive of the metadata.xml, and all the .mp4 files and supplementary.tar files (capturing the block offsets of each file stored in the archive). These block offsets must be added to the multi-dim array specified above.
+
+Calculate the md5 hash for the whole tar archive.
+
+Create the index-tar xml element (leaving the tar element attributes "position" and "block" empty at this stage - since these can only be known when all the tar archives to be archived to a single tape are viewed together in the correct order). Populate the video elements with the "block", "md5", and "size" attribute values. IMPORTANT NOTE: These block values are only relative to the start of this archive file. These will need to be modified later (when a collection of many archives is ready to be archived to tape), to reflect their relative offset to the start of the tape.
+ 
