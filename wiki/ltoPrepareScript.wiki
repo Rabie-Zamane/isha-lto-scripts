@@ -1,4 +1,4 @@
-#The script run to prepare the files for being archived to lto tape
+#summary The script run to prepare the files for being archived to lto tape
 
 = Introduction =
 
