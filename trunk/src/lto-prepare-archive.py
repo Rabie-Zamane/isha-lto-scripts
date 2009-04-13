@@ -13,7 +13,10 @@ import sys
 import string
 import md5sum2
 import xml.dom.minidom
-import hashlib
+import base64
+
+lto_home = '/lto-stage'
+lto_previews = lto_home+'/h261'
 
 blocksize = 128
 par2multicpu = '/usr/bin/par2-multicpu/par2'
@@ -31,15 +34,19 @@ def generate_par2_tar(file):
             par2files.append(f)
             par2filesstr = string.join(par2files, ' ')
             os.system('star -c -b'+str(blocksize)+' artype='+archivetype+' '+par2filesstr+' > '+file+'.par2.tar')
+    for p2 in par2files:
+        os.remove(p2)
             
 def generate_supp_tar(file, filelist):
     suppfilelist = string.join(filelist, ' ')
     os.system('star -c -b'+str(blocksize)+' artype='+archivetype+' '+suppfilelist+' > '+file+'.supplementary.tar')
+    for s in filelist:
+        os.remove(s)
     
 def generate_preview(file):
     previewsuffix = 'h261_512x288'
     previewfilename = file[0:-3]+previewsuffix+'.mp4'
-    os.system('ffmpeg -y -i '+file+' -pass 1 -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-fastfirstpass.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+file+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-hq.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 '+previewfilename)
+    os.system('ffmpeg -y -i '+file+' -pass 1 -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-fastfirstpass.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+file+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-hq.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 '+lto_previews+'/'+previewfilename)
     
 def get_timestamp(xmlfile) :
     xmlfile.seek(0)
@@ -84,7 +91,33 @@ def get_filesize(file):
     return os.path.getsize(file)
     
 def db_import_media_xml(session, device, mediaxml):
+    username='admin'
+    password='admin'
     url = 'http://localhost:8080/exist/rest//db/ts4isha/xquery/import-media-element.xql?sessionId='+session+'&deviceId='+device+'&mediaXML='+mediaxml
+    req = urllib2.Request(url)
+    base64string = base64.encodestring('%s:%s' % (username, password))[:-1]
+    authheader =  "Basic %s" % base64string
+    req.add_header("Authorization", authheader)
+    try:
+        handle = urllib2.urlopen(req)
+        print handle.read()
+        return handle.read()
+    except IOError, e:
+        if hasattr(e, 'code'):
+            if e.code != 401:
+                print 'We got another error'
+                print e.code
+            else:
+                print e.headers
+                print e.headers['www-authenticate']
+    
+      
+
+
+
+
+def db_get_event_metadata(session):
+    url = 'http://localhost:8080/exist/rest/db/ts4isha/xquery/get-event-session-metadata.xql?sessionIds='+sessionid
     f = urllib2.urlopen(url)
     return f.read()
 
@@ -119,7 +152,8 @@ def create_tar_xml(session, device):
 sessionid = sys.argv[1]
 deviceid = sys.argv[2]
 mp4s = []
-#eventtypeid = sessionid[0:sessionid.find("-")]
+
+print db_get_event_metadata(sessionid)
 
 
 for dirpath, dirnames, filenames in os.walk(os.getcwd()):
@@ -168,5 +202,11 @@ for index, mp4 in enumerate(mp4s):
     
 
 #print tarXmlElement.toprettyxml()
+#Create the main archive
+
+#for file in os.listdir(os.getcwd()):
+#    if file.endswith('.mp4') or file.endswith('.tar'):
+        
+        
 
 
