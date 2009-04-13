@@ -40,11 +40,11 @@ Step 5: Create a n1234.supplementary.tar file containing the "raw" sony xdcam xm
 
 Step 6: Generate the low resolution preview file
 
-Step 7: Calculate the md5sum and filesize and store in a multi-dim array.
+Step 7: Create a "media" xml element for the file (includes calculating the md5sum and filesize), and append to other media elements
 
 Now - use "star" to create a "pax" archive of the metadata.xml, and all the .mp4 files and supplementary.tar files (capturing the block offsets of each file stored in the archive). These block offsets must be added to the multi-dim array specified above.
 
 Calculate the md5 hash for the whole tar archive.
 
-Create the index-tar xml element (leaving the tar element attributes "position" and "block" empty at this stage - since these can only be known when all the tar archives to be archived to a single tape are viewed together in the correct order). Populate the video elements with the "block", "md5", and "size" attribute values. IMPORTANT NOTE: These block values are only relative to the start of this archive file. These will need to be modified later (when a collection of many archives is ready to be archived to tape), to reflect their relative offset to the start of the tape.
+Create the index-tar xml element from all the previously created media elements (leaving the tar element attributes "position" and "block" empty at this stage - since these can only be known when all the tar archives to be archived to a single tape are viewed together in the correct order). Populate the video elements with the "block", "md5", and "size" attribute values. IMPORTANT NOTE: These block values are only relative to the start of this archive file. These will need to be modified later (when a collection of many archives is ready to be archived to tape), to reflect their relative offset to the start of the tape.
  
