@@ -11,7 +11,9 @@ import urllib2
 import os
 import sys
 import string
-
+import md5sum2
+import xml.dom.minidom
+import hashlib
 
 blocksize = 128
 par2multicpu = '/usr/bin/par2-multicpu/par2'
@@ -76,7 +78,7 @@ def get_autosplit(file1,  file2):
             return "false"
         
 def get_md5_hash(file):
-    return "123"
+    return md5sum2.sum(file)
 
 def get_filesize(file):
     return os.path.getsize(file)
@@ -85,7 +87,34 @@ def db_import_media_xml(session, device, mediaxml):
     url = 'http://localhost:8080/exist/rest//db/ts4isha/xquery/import-media-element.xql?sessionId='+session+'&deviceId='+device+'&mediaXML='+mediaxml
     f = urllib2.urlopen(url)
     return f.read()
+
+def generate_media_index_xml(filename, domain, id):
+    doc = xml.dom.minidom.Document()
+    mediaElement = doc.createElement(domain)
+    doc.appendChild(mediaElement)
+    mediaElement.setAttribute('id', id)
+    mediaElement.setAttribute('md5', get_md5_hash(filename))
+    mediaElement.setAttribute('size', str(get_filesize(newfilename)))
+    
+    mediaElement.appendChild(generate_media_child_index_xml(filename,'par2'))
+    mediaElement.appendChild(generate_media_child_index_xml(filename,'supplementary'))
+    return mediaElement
  
+def generate_media_child_index_xml(filename, type):
+    doc = xml.dom.minidom.Document()
+    childElement = doc.createElement(type+'Tar')
+    doc.appendChild(childElement)
+    childElement.setAttribute('md5', get_md5_hash(filename+'.'+type+'.tar'))
+    return childElement
+
+def create_tar_xml(session, device):
+    doc = xml.dom.minidom.Document()
+    tarElement = doc.createElement('tar')
+    doc.appendChild(tarElement)
+    tarElement.setAttribute('sessionId', session)
+    tarElement.setAttribute('deviceId', device)
+    return tarElement
+
  
 sessionid = sys.argv[1]
 deviceid = sys.argv[2]
@@ -99,6 +128,7 @@ for dirpath, dirnames, filenames in os.walk(os.getcwd()):
             mp4s.append(os.path.join(dirpath, file))
             mp4s.sort()
 
+tarXmlElement = create_tar_xml(sessionid, deviceid)
 
 for index, mp4 in enumerate(mp4s):
     
@@ -132,11 +162,11 @@ for index, mp4 in enumerate(mp4s):
     generate_supp_tar(newfilename, suppfiles)
     
     generate_preview(newfilename)
-
-    generate_media_index_xml()
-
     
-  
+    mediaXmlElement = generate_media_index_xml(newfilename, 'video', newmediaid)
+    tarXmlElement.appendChild(mediaXmlElement)
+    
 
+#print tarXmlElement.toprettyxml()
 
 
