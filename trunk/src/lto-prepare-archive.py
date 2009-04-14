@@ -145,7 +145,7 @@ def create_tar_xml(session, device):
     tarElement = doc.createElement('tar')
     doc.appendChild(tarElement)
     tarElement.setAttribute('sessionId', session)
-    tarElement.setAttribute('deviceId', device)
+    tarElement.setAttribute('deviceCode', device)
     return tarElement
 
 def create_tar_event_metadata_file(filename, sid):
@@ -223,8 +223,9 @@ for index, mp4 in enumerate(mp4s):
 #Create the main tar archive
 print tarXmlElement.toprettyxml()
 filelist = []
+tarname = sessionid+'-'+deviceid+'.tar'
+
 for file in os.listdir(os.getcwd()):
-    tarname = sessionid+'-'+deviceid+'.tar'
     if file.endswith('.mp4') or file.endswith('.tar'): 
         filelist.append(file)
         filelist.sort()      
@@ -239,9 +240,19 @@ for line in stdout_value:
     if filename != 'metadata.xml':
         update_block_xml_attributes('video', filename, offset)
     
-print tarXmlElement.toprettyxml()
+#Cleanup    
+os.remove('metadata.xml')
+for f in filelist:
+    os.remove(f)
 
+doc = xml.dom.minidom.Document()
+doc.appendChild(tarXmlElement)
+tarXmlElement.setAttribute('md5', get_md5_hash(tarname))
+tarXmlElement.setAttribute('size', str(get_filesize(tarname)))
+xmlfile = open(sessionid+'-'+deviceid+'.xml', "w")
+xmlfile.write(doc.toprettyxml())
 
- #   tarXmlElement.
+#Add top level attributes
+
 
 
