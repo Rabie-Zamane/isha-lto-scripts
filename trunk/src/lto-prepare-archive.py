@@ -14,6 +14,13 @@ import string
 import md5sum2
 import xml.dom.minidom
 import base64
+import subprocess
+
+sessionid = sys.argv[1]
+deviceid = sys.argv[2]
+
+username='admin'
+password='admin'
 
 lto_home = '/lto-stage'
 lto_previews = lto_home+'/h261'
@@ -25,28 +32,34 @@ par2numfiles = 1
 par2memory = 1000
 archivetype = 'pax'
 
+mp4s = []
+
 def generate_par2_tar(file):
     print 'Generating PAR2 files for '+file+'\n'
-    os.system(par2multicpu +' create -r'+str(par2redundancy)+' -m'+str(par2memory)+' -n'+str(par2numfiles)+' '+file)
+    p = subprocess.Popen(par2multicpu +' create -r'+str(par2redundancy)+' -m'+str(par2memory)+' -n'+str(par2numfiles)+' '+file, shell=True)
+    sts = os.waitpid(p.pid, 0)
     par2files = []
     for f in os.listdir(os.getcwd()):
         if str(f).startswith(file) and str(f).endswith('.par2'):
             par2files.append(f)
             par2filesstr = string.join(par2files, ' ')
-            os.system('star -c -b'+str(blocksize)+' artype='+archivetype+' '+par2filesstr+' > '+file+'.par2.tar')
+            p = subprocess.Popen('star -c -b'+str(blocksize)+' artype='+archivetype+' '+par2filesstr+' > '+file+'.par2.tar', shell=True)
+            sts = os.waitpid(p.pid, 0)
     for p2 in par2files:
         os.remove(p2)
             
 def generate_supp_tar(file, filelist):
     suppfilelist = string.join(filelist, ' ')
-    os.system('star -c -b'+str(blocksize)+' artype='+archivetype+' '+suppfilelist+' > '+file+'.supplementary.tar')
+    p = subprocess.Popen('star -c -b'+str(blocksize)+' artype='+archivetype+' '+suppfilelist+' > '+file+'.supplementary.tar', shell=True)
+    sts = os.waitpid(p.pid, 0)
     for s in filelist:
         os.remove(s)
     
 def generate_preview(file):
     previewsuffix = 'h261_512x288'
     previewfilename = file[0:-3]+previewsuffix+'.mp4'
-    os.system('ffmpeg -y -i '+file+' -pass 1 -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-fastfirstpass.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+file+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-hq.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 '+lto_previews+'/'+previewfilename)
+    p = subprocess.Popen('ffmpeg -y -i '+file+' -pass 1 -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-fastfirstpass.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+file+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre ~/ffmpeg/ffpresets/libx264-hq.ffpreset -s 512x288 -b 512k -bt 512k -threads 0 -f mp4 '+lto_previews+'/'+previewfilename, shell=True)
+    sts = os.waitpid(p.pid, 0)
     
 def get_timestamp(xmlfile) :
     xmlfile.seek(0)
@@ -91,8 +104,6 @@ def get_filesize(file):
     return os.path.getsize(file)
     
 def db_import_media_xml(session, device, mediaxml):
-    username='admin'
-    password='admin'
     url = 'http://localhost:8080/exist/rest//db/ts4isha/xquery/import-media-element.xql?sessionId='+session+'&deviceId='+device+'&mediaXML='+mediaxml
     req = urllib2.Request(url)
     base64string = base64.encodestring('%s:%s' % (username, password))[:-1]
@@ -100,26 +111,15 @@ def db_import_media_xml(session, device, mediaxml):
     req.add_header("Authorization", authheader)
     try:
         handle = urllib2.urlopen(req)
-        print handle.read()
         return handle.read()
     except IOError, e:
-        if hasattr(e, 'code'):
-            if e.code != 401:
-                print 'We got another error'
-                print e.code
-            else:
-                print e.headers
-                print e.headers['www-authenticate']
-    
-      
-
-
-
+       print e.code
+       print e.headers
 
 def db_get_event_metadata(session):
     url = 'http://localhost:8080/exist/rest/db/ts4isha/xquery/get-event-session-metadata.xql?sessionIds='+sessionid
     f = urllib2.urlopen(url)
-    return f.read()
+    return f.readlines()
 
 def generate_media_index_xml(filename, domain, id):
     doc = xml.dom.minidom.Document()
@@ -148,22 +148,46 @@ def create_tar_xml(session, device):
     tarElement.setAttribute('deviceId', device)
     return tarElement
 
- 
-sessionid = sys.argv[1]
-deviceid = sys.argv[2]
-mp4s = []
+def create_tar_event_metadata_file(filename, sid):
+    tarMeta = open(filename,'w')
+    tarMeta.writelines(db_get_event_metadata(sid))
+    tarMeta.close()
 
-print db_get_event_metadata(sessionid)
-
+def update_block_xml_attributes(domain, filename, offset):
+    id = filename[filename.find('-')+1:filename.find('.')]
+    print id
+    doc = xml.dom.minidom.Document()
+    doc.appendChild(tarXmlElement)
+    mediaElems = doc.getElementsByTagName(domain)
+    for e in mediaElems:
+        atts = e.attributes
+        for attName in atts.keys():
+            attNode = atts.get(attName)
+            attValue = attNode.nodeValue
+            if attName == 'id' and attValue == id:
+                if filename.endswith('.mp4'):
+                    e.setAttribute('blockOffset', offset)
+                elif filename.endswith('par2.tar'):
+                    par2Elems = e.getElementsByTagName('par2Tar')
+                    par2Elem = par2Elems[0]
+                    par2Elem.setAttribute('blockOffset', offset)
+                elif filename.endswith('supplementary.tar'):
+                    suppElems = e.getElementsByTagName('supplementaryTar')
+                    suppElem = suppElems[0]
+                    suppElem.setAttribute('blockOffset', offset)
+            
+        
+    
+create_tar_event_metadata_file('metadata.xml',sessionid)
+tarXmlElement = create_tar_xml(sessionid, deviceid)
 
 for dirpath, dirnames, filenames in os.walk(os.getcwd()):
     for file in filenames:
         if file.endswith('.MP4'):
             mp4s.append(os.path.join(dirpath, file))
             mp4s.sort()
-
-tarXmlElement = create_tar_xml(sessionid, deviceid)
-
+            
+#Main loop
 for index, mp4 in enumerate(mp4s):
     
     rawxml = mp4[0:-4]+'M01.XML'
@@ -183,30 +207,41 @@ for index, mp4 in enumerate(mp4s):
     #Update the database with the media metadata
     mediaxml = urllib.quote('<video timestamp="'+timestamp+'" duration="'+duration+'" previousIds="'+originalid+'" autoSplit="'+autosplit+'" />')
     newmediaid = db_import_media_xml(sessionid, deviceid, mediaxml)
-    
     newfilename = 'video-'+newmediaid+'.mp4'
     distutils.file_util.copy_file(mp4, os.path.join(os.getcwd(), newfilename))
     
     generate_par2_tar(newfilename)
-    
     distutils.file_util.copy_file(rawxml, os.getcwd())
     rawxmlname = rawxml[str(rawxml).rfind('/')+1:len(str(rawxml))]
-    
     suppfiles = [rawxmlname]
     generate_supp_tar(newfilename, suppfiles)
-    
-    generate_preview(newfilename)
+    #generate_preview(newfilename)
     
     mediaXmlElement = generate_media_index_xml(newfilename, 'video', newmediaid)
     tarXmlElement.appendChild(mediaXmlElement)
+
+#Create the main tar archive
+print tarXmlElement.toprettyxml()
+filelist = []
+for file in os.listdir(os.getcwd()):
+    tarname = sessionid+'-'+deviceid+'.tar'
+    if file.endswith('.mp4') or file.endswith('.tar'): 
+        filelist.append(file)
+        filelist.sort()      
+        
+fileliststr = 'metadata.xml '+string.join(filelist, ' ')
+p = subprocess.Popen('star -c -v -b'+str(blocksize)+' artype='+archivetype+' -block-number f='+tarname+' -fifo fs=1g '+fileliststr, shell=True, stdout=subprocess.PIPE)
+stdout_value = p.stdout.readlines()
+print stdout_value
+for line in stdout_value:
+    offset = line[5:line.find(':')].strip()
+    filename = line[line.find(':')+4:line.find(' ',line.find(':')+4)]
+    if filename != 'metadata.xml':
+        update_block_xml_attributes('video', filename, offset)
     
+print tarXmlElement.toprettyxml()
 
-#print tarXmlElement.toprettyxml()
-#Create the main archive
 
-#for file in os.listdir(os.getcwd()):
-#    if file.endswith('.mp4') or file.endswith('.tar'):
-        
-        
+ #   tarXmlElement.
 
 
