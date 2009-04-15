@@ -189,5 +189,8 @@ def update_tar_xml_attributes(doc, filename):
     
 def write_xml(xmldoc,file):
     f = open(file, "w")
-    f.write(xmldoc.toprettyxml())
+    #Hack to put id as the first attribute
+    pretty = xmldoc.toprettyxml()
+    pretty = string.replace(pretty, '_id="', 'id="')
+    f.write(pretty)
     f.close()
