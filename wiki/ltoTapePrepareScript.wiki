@@ -4,7 +4,7 @@
 
 This script performs the following functions:
 
-  * Recalculates all file "block" offset values depending on the order the archives will be written to tape, and generates a tape.xml file from all the pre-prepared "tag" fragments (updating the block attributes accordingly). Also calculates and updates the tar file position/block attributes. Adds the top-level index timestamp attribute.
+  * Recalculates all file "block" offset values depending on the order the archives will be written to tape, and generates a tape.xml file from all the pre-prepared "tar" fragments (updating the block attributes accordingly). Also calculates and updates the tar file position/block attributes. Adds the top-level index timestamp attribute.
 
 = Details =
 
@@ -17,4 +17,3 @@ Step 1: Check that the total filesize of all the archives is <= 370GB
 Step 2: Generate the full tape.xml file, by looping through the archive files and adding each tar element, updating the "position" and "block" attribute values on the way.
 
 Step 3: Pass the tape.xml to the database via an XQuery, and receive a tape-id in return (e.g."27"). Add this id to the tape.xml and write to file.
-
