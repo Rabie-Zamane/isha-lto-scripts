@@ -1,20 +1,14 @@
-#Tape archiving workflow
+#summary Tape archiving workflow
 
 ==Directory structure==
  
-<lto4isha data home>/
-
-<lto4isha data home>/tapes   (top-level folder for tapes that have been built but not yet written to tape and verified)
-
-<lto4isha data home>/tapes/pending/123   (tape that has already been built and given id 123, but it is not yet written to tape)
-
-<lto4isha data home>/tapes/written/123   (tape that has already been written to tape not yet verified)
-
-<lto4isha data home>/tapes/verified/123   (tape that has already been written to tape and verified and just waiting for deletion)
-
-<lto4isha data home>/work  (temporary folder while we build a new tape - this sits between the tars folder and a new tapes subfolder)
-
-<lto4isha data home>/tars  (all the session-device tars that have been created but not yet assigned to a tape)
+*<lto4isha data home>/*
+*<lto4isha data home>/tapes*   (top-level folder for tapes that have been built but not yet written to tape and verified)
+*<lto4isha data home>/tapes/pending/123*   (tape that has already been built and given id 123, but it is not yet written to tape)
+*<lto4isha data home>/tapes/written/123*   (tape that has already been written to tape not yet verified)
+*<lto4isha data home>/tapes/verified/123*   (tape that has already been written to tape and verified and just waiting for deletion)
+*<lto4isha data home>/work*  (temporary folder while we build a new tape - this sits between the tars folder and a new tapes subfolder)
+*<lto4isha data home>/tars*  (all the session-device tars that have been created but not yet assigned to a tape)
  
 Note - may want to subfolder /tars folder because there are certain tars you would never want to store on the same tape as each other.
  
