@@ -3,11 +3,17 @@
 ==Directory structure==
  
 <lto4isha data home>/
+
 <lto4isha data home>/tapes   (top-level folder for tapes that have been built but not yet written to tape and verified)
+
 <lto4isha data home>/tapes/pending/123   (tape that has already been built and given id 123, but it is not yet written to tape)
+
 <lto4isha data home>/tapes/written/123   (tape that has already been written to tape not yet verified)
+
 <lto4isha data home>/tapes/verified/123   (tape that has already been written to tape and verified and just waiting for deletion)
+
 <lto4isha data home>/work  (temporary folder while we build a new tape - this sits between the tars folder and a new tapes subfolder)
+
 <lto4isha data home>/tars  (all the session-device tars that have been created but not yet assigned to a tape)
  
 Note - may want to subfolder /tars folder because there are certain tars you would never want to store on the same tape as each other.
@@ -24,11 +30,11 @@ Note - Only the first two scripts need to access the database.
  
 ==General workflow==
  
-1. Create session-device tar
-2. Repeat step 1 until we decide we have enough tars for one tape (then proceed to next step)
-3. Manually copy required tars (some subset of the tar files in the /tars folder) into the /work folder
-4. Run the create-virtual-tape script
-5. Manually check over the contents of this new /tapes/pending/123 folder. If there is a problem then rollback by moving the session-device tars back to the /tars folder and removing the new /tapes/123 folder and new 123.xml resource in the /db/lto4isha/tapes database collection (and then go back to step 4).  IDEA - Have a dismantle-tape script that reverses the changes done by prepare-tape script.
-6. Run the write-tape script.
-7. Run the verify-tape script. If it fails then go back to step 6 (or earlier should the error indicate a more fundamental problem)
-8. Run the delete-virtual-tape script.
+  # Create session-device tar
+  # Repeat step 1 until we decide we have enough tars for one tape (then proceed to next step)
+  # Manually copy required tars (some subset of the tar files in the /tars folder) into the /work folder
+  # Run the create-virtual-tape script
+  # Manually check over the contents of this new /tapes/pending/123 folder. If there is a problem then rollback by moving the session-device tars back to the /tars folder and removing the new /tapes/123 folder and new 123.xml resource in the /db/lto4isha/tapes database collection (and then go back to step 4).  IDEA - Have a dismantle-tape script that reverses the changes done by prepare-tape script.
+  # Run the write-tape script.
+  # Run the verify-tape script. If it fails then go back to step 6 (or earlier should the error indicate a more fundamental problem)
+  # Run the delete-virtual-tape script.
