@@ -3,7 +3,7 @@ xquery version "1.0";
 declare namespace import-tape-element = "http://www.ishafoundation.org/ts4isha/xquery/import-tape-element";
 
 declare variable $import-tape-element:collectionPath := '/db/lto4isha/data';
-declare variable $import-tape-element:idPrefix := 'tape-';
+declare variable $import-tape-element:idPrefix := 't';
 
 declare option exist:serialize "media-type=text/plain";
 

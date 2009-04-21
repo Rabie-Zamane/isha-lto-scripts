@@ -19,7 +19,8 @@ def main():
     host = 'localhost:8080'
     
     lto_home = '/lto-stage'
-    previewDir = lto_home+'/h261'
+    tar_home = lto_home+'/tars' 
+    preview_home = lto_home+'/h261'
     
     blocksize = 128
     archivetype = 'pax'
@@ -85,7 +86,7 @@ def main():
         rawxmlname = rawxml[str(rawxml).rfind('/')+1:len(str(rawxml))]
         suppfiles = [rawxmlname]
         lto_util.generate_supp_tar(newfilename, suppfiles, blocksize, archivetype)
-        lto_util.generate_preview(newfilename, previewDir)
+        lto_util.generate_preview(newfilename, preview_home)
         
         lto_util.generate_media_index_xml(tarXmlDoc, newfilename, 'video', newmediaid)
     

@@ -173,15 +173,15 @@ def update_block_xml_attributes(doc, domain, filename, offset):
             attValue = attNode.nodeValue
             if attName == '_id' and attValue == id:
                 if filename.endswith('.mp4'):
-                    e.setAttribute('blockOffset', offset)
+                    e.setAttribute('recordOffset', offset)
                 elif filename.endswith('par2.tar'):
                     par2Elems = e.getElementsByTagName('par2Tar')
                     par2Elem = par2Elems[0]
-                    par2Elem.setAttribute('blockOffset', offset)
+                    par2Elem.setAttribute('recordOffset', offset)
                 elif filename.endswith('supplementary.tar'):
                     suppElems = e.getElementsByTagName('supplementaryTar')
                     suppElem = suppElems[0]
-                    suppElem.setAttribute('blockOffset', offset)
+                    suppElem.setAttribute('recordOffset', offset)
                     
 def update_tar_xml_attributes(doc, filename):                    
     doc.documentElement.setAttribute('md5', get_md5_hash(filename))
@@ -190,7 +190,7 @@ def update_tar_xml_attributes(doc, filename):
 def write_xml(xmldoc,file):
     f = open(file, "w")
     #Hack to put id as the first attribute
-    pretty = xmldoc.toprettyxml()
-    pretty = string.replace(pretty, '_id="', 'id="')
-    f.write(pretty)
+    str = xmldoc.toxml()
+    str = string.replace(str, '_id="', 'id="')
+    f.write(str)
     f.close()
