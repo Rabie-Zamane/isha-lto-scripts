@@ -8,6 +8,7 @@ import getopt
 import sys
 import subprocess
 import os
+import xml.dom.minidom
 
 
 def check_tape_folder_exists(path):
@@ -32,9 +33,38 @@ def setup_tape_drive(tape_device, blocksize):
     print 'Rewinding tape'
     sts = os.waitpid(p.pid, 0)
 
-def write_tape(tape_home, tape_device, id, tape_index_size_bytes):
-    p = subprocess.Popen('sdd if='+tape_home+'/pending/'+id+'/tape.xml of='+tape_device+' bs='+str(tape_index_size_bytes), shell=True)
-    print 'Writing tape.xml file'
+def write_tape(tape_home, tape_device, id, tape_index_size_bytes, bs_bytes):
+    filepath = tape_home+'/pending/'+id+'/'+id+'.xml'
+    print filepath
+    print 'sdd if='+filepath+' of='+tape_device+' bs='+str(tape_index_size_bytes)
+    p = subprocess.Popen('sdd if='+filepath+' of='+tape_device+' bs='+str(tape_index_size_bytes)+' -fill', shell=True)
+    print 'Writing '+id+'.xml file at position 1'
+    sts = os.waitpid(p.pid, 0)
+    
+    doc = xml.dom.minidom.parse(filepath)
+    tarElems = doc.getElementsByTagName('tar')
+    for index, tar in enumerate(tarElems): 
+        session_id = tar.getAttribute('sessionId')
+        device_code = tar.getAttribute('deviceCode')
+        position = int(tar.getAttribute('position'))
+        tar_id = session_id+'-'+device_code
+        
+        if position != index+2:
+            print 'Archives incorrectly ordered in '+id+'.xml file. write-tape script terminated.'
+            sys.exit(1)
+        
+        tar_path = tape_home+'/pending/'+id+'/'+tar_id+'.tar'
+        p = subprocess.Popen('mt -f '+tape_device+' tell', shell=True, stdout=subprocess.PIPE)
+        stdout_value = p.stdout.readlines()
+        print 'Tape '+str(stdout_value[0])
+        sts = os.waitpid(p.pid, 0)
+        p = subprocess.Popen('sdd if='+tar_path+' of='+tape_device+' bs='+str(bs_bytes), shell=True)
+        print 'Writing '+tar_id+'.tar file at position '+str(index+2)
+        sts = os.waitpid(p.pid, 0)
+        
+    print 'Tape writing completed'
+    p = subprocess.Popen('mt -f '+tape_device+' rewind', shell=True)
+    print 'Rewinding tape'
     sts = os.waitpid(p.pid, 0)
     
     
@@ -46,6 +76,7 @@ def main():
     tape_home = lto_home+'/tapes'
     
     blocksize = 128
+    blocksize_bytes = blocksize * 512
     tape_index_size_bytes = 100 * 1024 * 1024
     tape_device = '/dev/nst0'
     
@@ -61,7 +92,8 @@ def main():
         
     check_tape_folder_exists(tape_home+'/pending/'+tape_id)
     setup_tape_drive(tape_device, blocksize)
-    write_tape(tape_home, tape_device, tape_id, tape_index_size_bytes)
+    write_tape(tape_home, tape_device, tape_id, tape_index_size_bytes, blocksize_bytes)
+    
     
 if __name__ == "__main__":
     main()  

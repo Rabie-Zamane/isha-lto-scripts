@@ -101,7 +101,7 @@ def main():
         file_blocks = int(size/block_bytes) 
         xml_path = os.path.join(work_home, tar_name+'.xml')
         append_tar_element(tapeXmlDoc, xml_path, position, current_block)
-        current_block += file_blocks
+        current_block += file_blocks + 1
         
     #Import tape.xml to the xml database
     username = raw_input('username: ')
@@ -116,7 +116,7 @@ def main():
     update_tape_xml(tapeXmlDoc, tape_id)
     tape_dir = tape_home+'/pending/'+tape_id
     os.mkdir(tape_dir)
-    lto_util.write_xml(tapeXmlDoc, tape_dir+'/tape.xml')
+    lto_util.write_xml(tapeXmlDoc, tape_dir+'/'+tape_id+'.xml')
     
          
          
