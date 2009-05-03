@@ -41,6 +41,8 @@ def create_tar_archive(config, session_id, device_code, tar_xml_doc):
     
     tar_name = session_id+'-'+device_code+'.tar'
     tar_path = lto_util.get_tar_build_dir(config)+'/'+tar_name
+    block_size_bytes = int(config.get('Tape', 'block_size_bytes'))
+    blocking_factor = block_size_bytes/512
     filelist = []
     for file in os.listdir(lto_util.get_tar_build_dir(config)):
         filelist.append(file)
@@ -49,7 +51,7 @@ def create_tar_archive(config, session_id, device_code, tar_xml_doc):
     
     filelist_str = 'referenced-items.xml '+string.join(filelist, ' ')
     print 'Creating tar archive: '+tar_path
-    p = subprocess.Popen('tar -cvR --format='+lto_util.get_tar_format(config)+' -C '+lto_util.get_tar_build_dir(config)+' -f '+tar_path+' '+filelist_str, shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('tar -cvR -b '+str(blocking_factor)+' --format='+lto_util.get_tar_format(config)+' -C '+lto_util.get_tar_build_dir(config)+' -f '+tar_path+' '+filelist_str, shell=True, stdout=subprocess.PIPE)
     stdout_value = p.stdout.readlines()
     del stdout_value[0]
     for line in stdout_value:
@@ -73,7 +75,7 @@ def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc):
     #Ask user for confirmation to write media xml to database
     update = raw_input('Update database with session-media metadata? [y/n]: ')
     xml_media_filename = session_id+'-'+device_code+'-media.xml' 
-    xml_media_filepath = config.get('Main', 'tar_archive_dir')+'/media-metadata/'+xml_media_filename
+    xml_media_filepath = config.get('Dirs', 'tar_archive_dir')+xml_media_filename
     if update == 'y':
         username = raw_input('username: ')
         password = getpass.getpass('password: ')
@@ -104,11 +106,11 @@ def main():
     config = ConfigParser.ConfigParser()
     config.read('lto.cfg')
     
+    lto_util.config_checks(config)
     category = lto_util.get_media_category(config, path)
     lto_util.media_path_check(path) 
     lto_util.media_file_types_check(config, category, path)
     
-    lto_util.config_checks(config)
     lto_util.path_check(lto_util.get_tar_build_dir(config))
     lto_util.path_check(lto_util.get_proxy_media_dir(config))
     lto_util.session_device_check(config, session_id, device_code)

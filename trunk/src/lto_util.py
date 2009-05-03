@@ -145,13 +145,16 @@ def session_device_check(config, session_id, device_code):
             sys.exit(2)
     
 def config_checks(config):
-    tar_archive_dir = config.get('Main', 'tar_archive_dir')
-    proxy_media_dir = config.get('Main', 'proxy_media_dir')
+    tar_archive_dir = config.get('Dirs', 'tar_archive_dir')
+    proxy_media_dir = config.get('Dirs', 'proxy_media_dir')
     host = config.get('Connection', 'host')
     port = config.get('Connection', 'port')
     transcript_xmldb_root = config.get('Connection', 'transcript_xmldb_root')
     archive_format = config.get('Tar', 'archive_format')
-    block_size_bytes = config.get('Tar', 'block_size_bytes')
+    block_size_bytes = config.get('Tape', 'block_size_bytes')
+    max_gb = config.get('Tape', 'max_gb')
+    min_gb = config.get('Tape', 'min_gb')
+    index_size_mb = config.get('Tape', 'index_size_mb')
     cmd = config.get('Par2', 'cmd')
     redundancy = config.getint('Par2', 'redundancy')
     num_files = config.getint('Par2', 'num_files')
@@ -169,9 +172,19 @@ def config_checks(config):
     if not (int(port) >= 0 and int(port) <= 65535):
         print 'Config Error: wrong format for port. create-archive script terminated.'
         sys.exit(2)
-    if not (int(block_size_bytes)%512 == 0):
-        print 'Config Error: block size must be a multiple of 512. create-archive script terminated.'
+    if not (block_size_bytes.isdigit()):
+        print 'Config Error: block_size_bytes must be an integer. create-archive script terminated.'
+        sys.exit(2) 
+    if not (int(block_size_bytes)%1024 == 0):
+        print 'Config Error: block size must be a multiple of 1024. create-archive script terminated.'
         sys.exit(2)   
+    if not (max_gb.isdigit()):
+        print 'Config Error: max_gb must be an integer. create-archive script terminated.'
+        sys.exit(2)   
+    if not (min_gb.isdigit()):
+        print 'Config Error: min_gb must be an integer. create-archive script terminated.'
+        sys.exit(2) 
+    
 
 def get_host_port(config):
     host = config.get('Connection', 'host')
@@ -215,7 +228,7 @@ def move_tar_files(config, session_id, device_code):
     archive_id = session_id+'-'+device_code
     tar = tb+'/'+archive_id+'.tar'
     xml = tb+'/'+archive_id+'.xml'
-    dest = config.get('Main', 'tar_archive_dir') 
+    dest = config.get('Dirs', 'tar_archive_dir') 
     try:
         shutil.move(xml, dest)
         shutil.move(tar, dest)
@@ -270,13 +283,16 @@ def delete_dir_content(dir):
     os.mkdir(dir)
 
 def get_tar_build_dir(config):
-    return config.get('Main', 'tar_archive_dir')+'/work'
+    return config.get('Dirs', 'tar_archive_dir')+'/work'
+
+def get_tape_build_dir(config):
+    return config.get('Dirs', 'virtual_tape_dir')+'/work'
 
 def get_proxy_media_dir(config):
-    return config.get('Main', 'proxy_media_dir')
+    return config.get('Dirs', 'proxy_media_dir')
 
 def get_tar_blocking_factor(config):
-    bs = config.getint('Tar', 'block_size_bytes')
+    bs = config.getint('Tape', 'block_size_bytes')
     return int(bs)/512
 
 def get_tar_format(config):
@@ -573,3 +589,16 @@ def write_xml(xmldoc, filepath):
     str = string.replace(str, '_id="', 'id="')
     f.write(str)
     f.close()
+
+def get_dir_total_size(dir):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(dir):
+        for f in filenames:
+            total_size += get_filesize(os.path.join(dirpath, f))
+    return total_size
+
+def get_curr_datetime():
+    now = datetime.datetime.now()
+    return today.strftime("%Y-%m-%dT%H:%M:%S")
+        
+    
