@@ -45,18 +45,18 @@ def get_media_category(config, path):
     last_dir = path[path.rfind('/')+1:]
     
     xdcamDir = config.get('CategoryFolders', 'sony-xdcam')
-    dvDir = config.get('CategoryFolders', 'video-dig')
+    dvDir = config.get('CategoryFolders', 'video')
     fostexDir = config.get('CategoryFolders', 'fostex-audio')
-    mdDir = config.get('CategoryFolders', 'audio-dig')
+    mdDir = config.get('CategoryFolders', 'audio')
     
     if last_dir == xdcamDir:
         return 'sony-xdcam'
     elif last_dir == dvDir:
-        return 'video-dig'
+        return 'video'
     elif last_dir == fostexDir:
         return 'fostex-audio'
     elif last_dir == mdDir:
-        return 'audio-dig'
+        return 'audio'
     else:
         print 'Path must terminate with one of the following directory names: '+xdcamDir+', '+dvDir+', '+fostexDir+', '+mdDir
         print 'create-archive script terminated.'
@@ -336,11 +336,11 @@ def get_id_from_filename(filepath, domain, config):
 def get_new_media_id(session_id, domain, category, config, previous_id, filepath):
     if category == 'sony-xdcam':
         id = generate_new_id(session_id, domain, config, previous_id)
-    elif category == 'video-dig':
+    elif category == 'video':
         id = get_id_from_filename(filepath, domain, config)
     elif category == 'fostex-audio':
         id = generate_new_id(session_id, domain, config, previous_id)
-    elif category == 'audio-dig':
+    elif category == 'audio':
         id = get_id_from_filename(filepath, domain, config)
     else:
         print 'Undefined media category: '+category
@@ -359,7 +359,7 @@ def generate_db_media_xml_element(media_path, domain, category, media_id, config
         duration = get_media_duration(media_path)
         auto_split = get_autosplit(media_path)
         attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration,'autoSplit':auto_split}    
-    elif category == 'video-dig' and media_in_category(media_path, category, config):
+    elif category == 'video' and media_in_category(media_path, category, config):
         duration = get_media_duration(media_path)
         attributes = {'originalId':original_id, 'duration':duration}
     elif category == 'fostex-audio' and media_in_category(media_path, category, config):
@@ -367,7 +367,7 @@ def generate_db_media_xml_element(media_path, domain, category, media_id, config
         original_id = get_original_id(media_path)
         duration = get_media_duration(media_path)
         attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration}
-    elif category == 'audio-dig'and media_in_category(media_path, category, config):
+    elif category == 'audio'and media_in_category(media_path, category, config):
         duration = get_media_duration(media_path)
         attributes = {'originalId':original_id,'duration':duration}
     else:
