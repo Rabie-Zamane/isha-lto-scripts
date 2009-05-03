@@ -16,7 +16,7 @@ import distutils.file_util
 import urllib
 import httplib
 import shutil
-import calendar
+import datetime
 
 
 def check_args(options):
@@ -105,7 +105,6 @@ def exec_url_xquery_boolean(config, collection, query):
         else:
             return False
     except httplib.HTTPException, e:
-        print e.msg
         print 'Unable to execute xquery'
     else:
         conn.close()
@@ -192,8 +191,10 @@ def get_host_port(config):
     return host+':'+str(port)
 
 def get_transcript_url(config):
-    transcriptXmlDbRoot = config.get('Connection', 'transcript_xmldb_root')
-    return transcriptXmlDbRoot
+    return config.get('Connection', 'transcript_xmldb_root')
+
+def get_lto_url(config):
+    return config.get('Connection', 'lto_xmldb_root')
     
 def create_db_session_media_xml(session_id, device_code):
     doc = xml.dom.minidom.Document()
@@ -233,7 +234,6 @@ def move_tar_files(config, session_id, device_code):
         shutil.move(xml, dest)
         shutil.move(tar, dest)
     except Exception, e:
-        print e.msg
         print 'Unable to move archive files to: '+dest
         print 'create-archive script terminated.'
         sys.exit(2)
@@ -247,7 +247,6 @@ def create_referenced_items_file(config, session_id):
         response = conn.getresponse()
         tarMeta.writelines(response.read())
     except httplib.HTTPException, e:
-        print e.msg
         print 'Unable to connect to database'
     else:
         conn.close()
@@ -268,7 +267,6 @@ def db_get_next_media_id(session_id, domain, config):
         else:
             return data
     except httplib.HTTPException, e:
-        print e.msg
         print 'Unable to connect to database'
     else:
         conn.close()
@@ -287,6 +285,9 @@ def get_tar_build_dir(config):
 
 def get_tape_build_dir(config):
     return config.get('Dirs', 'virtual_tape_dir')+'/work'
+
+def get_tape_pending_dir(config):
+    return config.get('Dirs', 'virtual_tape_dir')+'/pending'
 
 def get_proxy_media_dir(config):
     return config.get('Dirs', 'proxy_media_dir')
@@ -519,7 +520,7 @@ def db_add_media_xml(config, db_media_xml_doc, username, password):
     authheader =  "Basic %s" % base64string
     headers = {'Authorization': authheader}
     conn = httplib.HTTPConnection(get_host_port(config))
-    
+   
     if len(deviceElement.childNodes) == 0:
         print 'Internal Error: No session-media xml nodes generated.'
         print 'create-archive script terminated.'
@@ -538,9 +539,11 @@ def db_add_media_xml(config, db_media_xml_doc, username, password):
                 if '<exception>' in data:
                     print get_xquery_exception_msg(data)
                     print 'create-archive script terminated'
-                    sys.exit(2)
+                    return False
+                elif response.status == 401 and response.reason == 'Unauthorized':
+                    print 'Authentication Failed.'
+                    return False
             except httplib.HTTPException, e:
-                print e.msg
                 print 'Unable to connect to database'
     conn.close()
     return True
@@ -599,6 +602,6 @@ def get_dir_total_size(dir):
 
 def get_curr_datetime():
     now = datetime.datetime.now()
-    return today.strftime("%Y-%m-%dT%H:%M:%S")
+    return now.strftime("%Y-%m-%dT%H:%M:%S")
         
     

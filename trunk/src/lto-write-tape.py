@@ -36,8 +36,8 @@ def setup_tape_drive(tape_device, blocksize):
 def write_tape(tape_home, tape_device, id, tape_index_size_bytes, bs_bytes):
     filepath = tape_home+'/pending/'+id+'/'+id+'.xml'
     print filepath
-    print 'sdd if='+filepath+' of='+tape_device+' bs='+str(tape_index_size_bytes)
-    p = subprocess.Popen('sdd if='+filepath+' of='+tape_device+' bs='+str(tape_index_size_bytes)+' -fill', shell=True)
+    print 'dd if='+filepath+' of='+tape_device+' bs='+str(tape_index_size_bytes)
+    p = subprocess.Popen('dd if='+filepath+' of='+tape_device+' bs='+str(tape_index_size_bytes)+' -fill', shell=True)
     print 'Writing '+id+'.xml file at position 1'
     sts = os.waitpid(p.pid, 0)
     
@@ -58,7 +58,7 @@ def write_tape(tape_home, tape_device, id, tape_index_size_bytes, bs_bytes):
         stdout_value = p.stdout.readlines()
         print 'Tape '+str(stdout_value[0])
         sts = os.waitpid(p.pid, 0)
-        p = subprocess.Popen('sdd if='+tar_path+' of='+tape_device+' bs='+str(bs_bytes), shell=True)
+        p = subprocess.Popen('dd if='+tar_path+' of='+tape_device+' bs='+str(bs_bytes), shell=True)
         print 'Writing '+tar_id+'.tar file at position '+str(index+2)
         sts = os.waitpid(p.pid, 0)
         

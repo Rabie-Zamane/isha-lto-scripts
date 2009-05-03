@@ -75,7 +75,7 @@ def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc):
     #Ask user for confirmation to write media xml to database
     update = raw_input('Update database with session-media metadata? [y/n]: ')
     xml_media_filename = session_id+'-'+device_code+'-media.xml' 
-    xml_media_filepath = config.get('Dirs', 'tar_archive_dir')+xml_media_filename
+    xml_media_filepath = config.get('Dirs', 'tar_archive_dir')+'/'+xml_media_filename
     if update == 'y':
         username = raw_input('username: ')
         password = getpass.getpass('password: ')
