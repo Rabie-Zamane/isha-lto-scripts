@@ -15,18 +15,134 @@ import sys
 import distutils.file_util
 import urllib
 import httplib
+import shutil
+import calendar
 
 
-def argument_checks(session_id, device_code, path):
-    if not re.match(r'^[a-z]{1,3}-[0-9]{1,6}-[0-9]{1,2}$', session_id):
-        print 'Argument Error: wrong format for session id. create-archive script terminated.'
+def check_args(options):
+    if options.session_id == None or options.session_id =="":
+        print 'Argument Error: session id not specified. create-archive script terminated.'
         sys.exit(2)
-    if not re.match(r'^(cam|aud|pho)-[0-9]{1,2}$', device_code):
-        print 'Argument Error: wrong format for device code. create-archive script terminated.'
+    if options.device_code == None or options.device_code =="":
+        print 'Argument Error: device code not specified. create-archive script terminated.'
         sys.exit(2)
+    if options.path == None or options.path =="":
+        print 'Argument Error: media path not specified. create-archive script terminated.'
+        sys.exit(2)
+
+def media_path_check(path):
     if not os.path.exists(path):
         print 'Argument Error: '+path+' is not a valid path. create-archive script terminated.'
         sys.exit(2)
+
+def path_check(path):
+    if not os.path.exists(path):
+        print 'Config Error: '+path+' does not exist. Please create it before running the script.' 
+        print 'create-archive script terminated.'
+        sys.exit(2)
+
+def get_media_category(config, path):
+    last_dir = path[path.rfind('/')+1:]
+    
+    xdcamDir = config.get('CategoryFolders', 'sony-xdcam')
+    dvDir = config.get('CategoryFolders', 'video-dig')
+    fostexDir = config.get('CategoryFolders', 'fostex-audio')
+    mdDir = config.get('CategoryFolders', 'audio-dig')
+    
+    if last_dir == xdcamDir:
+        return 'sony-xdcam'
+    elif last_dir == dvDir:
+        return 'video-dig'
+    elif last_dir == fostexDir:
+        return 'fostex-audio'
+    elif last_dir == mdDir:
+        return 'audio-dig'
+    else:
+        print 'Path must terminate with one of the following directory names: '+xdcamDir+', '+dvDir+', '+fostexDir+', '+mdDir
+        print 'create-archive script terminated.'
+        sys.exit(2)
+    
+def media_file_types_check(config, category, path):
+    category_filetypes = config.get('CategoryFileTypes', category).split(',')
+    media_file_count = 0
+    non_category_files = []
+    for dirpath, dirnames, filenames in os.walk(path):
+        for file in filenames:
+            if media_in_domain(file, 'video', config) or media_in_domain(file, 'audio', config) or media_in_domain(file, 'image', config):
+                if not media_in_category(file, category, config): 
+                    non_category_files.append(os.path.join(dirpath, file))
+                else: 
+                    media_file_count += 1
+                                              
+    if (len(non_category_files) > 0):
+        print 'WARNING: The following unexpected media files were found in the folder: '+path+'\n'
+        for f in non_category_files:
+            print f    
+        print '\nExpecting only '+string.upper(string.join(category_filetypes, ','))+' files for "'+category+'" category.'
+        print '\nNOTE: This situation should only occur if when one device has generated multiple media formats. (e.g. a video camera taking stills/audio as well as video)'
+        print 'Usually this indicates that the files have been misplaced, in which case the user should manually remove them before re-running the script.\n'
+        proceed = raw_input('Do you still want to proceed, including these files in the archive? [y/n]: ')
+        if proceed == 'y':
+            return
+        else:
+            print '\ncreate-archive script terminated.'
+            sys.exit(2)
+            
+    elif media_file_count == 0:
+        print 'No recognised media files were found in: '+path
+        print '\ncreate-archive script terminated.'
+        sys.exit(2)
+    
+def exec_url_xquery_boolean(config, collection, query):
+    try:
+        conn = httplib.HTTPConnection(get_host_port(config))
+        params = urllib.urlencode({'_query': query})
+        conn.request('GET', get_transcript_url(config)+'/'+collection+'?'+params, None, {})
+        response = conn.getresponse()
+        data = response.read()
+        if '<exist:value exist:type="xs:boolean">true</exist:value>' in data:
+            return True
+        else:
+            return False
+    except httplib.HTTPException, e:
+        print e.msg
+        print 'Unable to execute xquery'
+    else:
+        conn.close()
+        
+def valid_chars(string):
+    return re.match(r'^[a-zA-Z0-9-_]+$', string)
+        
+def session_device_check(config, session_id, device_code):
+    if not valid_chars(session_id):
+        print 'Argument Error: Invalid characters used in session id. create-archive script terminated.'
+        sys.exit(2)
+    if not valid_chars(device_code):
+        print 'Argument Error: Invalid characters used in device_code. create-archive script terminated.'
+        sys.exit(2)
+        
+    session_exists_qry = 'exists(/session[@id="'+session_id+'"])'
+    device_exists_qry = 'exists(//deviceCode[@id="'+device_code+'"])'
+    media_exists_for_session_device_qry = 'exists(/session[@id="'+session_id+'"]//device[@code="'+device_code+'"]/*)'
+    
+    if not exec_url_xquery_boolean(config, 'data', session_exists_qry):
+        print 'session id: '+session_id+' does not yet exist. create-archive-script terminated.'
+        sys.exit(2)
+    if not exec_url_xquery_boolean(config, 'reference', device_exists_qry):
+        print 'device code: '+device_code+' does not exist. create-archive-script terminated.'
+        sys.exit(2)
+    if exec_url_xquery_boolean(config, 'data', media_exists_for_session_device_qry):
+        print 'At least one media item has already been associated with session: '+session_id+' and device: '+device_code
+        print
+        print 'To see the associated media items for this session open the following link in your browser:'
+        print 'http://'+get_host_port(config)+get_transcript_url(config)+'/data?_query=/session[@id="'+session_id+'"]//mediaMetadata'
+        print
+        cont = raw_input('Are you sure you want to continue? [y/n]: ')
+        if cont == 'y':
+            return 
+        else:
+            print 'Create-archive script terminated.'
+            sys.exit(2)
     
 def config_checks(config):
     tar_archive_dir = config.get('Main', 'tar_archive_dir')
@@ -40,9 +156,6 @@ def config_checks(config):
     redundancy = config.getint('Par2', 'redundancy')
     num_files = config.getint('Par2', 'num_files')
     memory = config.getint('Par2', 'memory')
-    video_types = config.get('MediaTypes', 'video_types')
-    audio_types = config.get('MediaTypes', 'audio_types')
-    image_types = config.get('MediaTypes', 'image_types')
     
     if not os.path.exists(tar_archive_dir):
         print 'Config Error: tar_archive_dir is not a valid path. create-archive script terminated.'
@@ -58,19 +171,16 @@ def config_checks(config):
         sys.exit(2)
     if not (int(block_size_bytes)%512 == 0):
         print 'Config Error: block size must be a multiple of 512. create-archive script terminated.'
-        sys.exit(2)
-
-#def db_session_id_exists(session_id):
-    
+        sys.exit(2)   
 
 def get_host_port(config):
     host = config.get('Connection', 'host')
     port = config.getint('Connection', 'port')
     return host+':'+str(port)
 
-def get_transcript_xquery_url(config):
+def get_transcript_url(config):
     transcriptXmlDbRoot = config.get('Connection', 'transcript_xmldb_root')
-    return transcriptXmlDbRoot+'/xquery'
+    return transcriptXmlDbRoot
     
 def create_db_session_media_xml(session_id, device_code):
     doc = xml.dom.minidom.Document()
@@ -90,16 +200,37 @@ def create_tar_xml_doc(session_id, device_code):
     tarElement.setAttribute('deviceCode', device_code)
     return doc
 
+def get_new_filepath(config, domain, media_id, filepath):
+    tb = get_tar_build_dir(config)
+    extn = string.lower(get_file_extn(filepath))
+    new_fp = tb+'/'+domain+'-'+media_id+'.'+extn
+    return new_fp
+
 def copy_media_file(filepath, new_filepath):
     print 'copying file '+filepath+' to '+new_filepath
     distutils.file_util.copy_file(filepath, new_filepath)
+    
+def move_tar_files(config, session_id, device_code):
+    tb = get_tar_build_dir(config)
+    archive_id = session_id+'-'+device_code
+    tar = tb+'/'+archive_id+'.tar'
+    xml = tb+'/'+archive_id+'.xml'
+    dest = config.get('Main', 'tar_archive_dir') 
+    try:
+        shutil.move(xml, dest)
+        shutil.move(tar, dest)
+    except Exception, e:
+        print e.msg
+        print 'Unable to move archive files to: '+dest
+        print 'create-archive script terminated.'
+        sys.exit(2)
 
-def create_referenced_items_file(filename, config, session_id):
-    tarMeta = open(os.path.join(get_tar_build_dir(config), filename),'w')
+def create_referenced_items_file(config, session_id):
+    tarMeta = open(os.path.join(get_tar_build_dir(config), 'referenced-items.xml'),'w')
     params = urllib.urlencode({'sessionIds': session_id})
     conn = httplib.HTTPConnection(get_host_port(config))
     try:
-        conn.request('GET', get_transcript_xquery_url(config)+'/get-referenced-items.xql?'+params, None, {})
+        conn.request('GET', get_transcript_url(config)+'/xquery/get-referenced-items.xql?'+params, None, {})
         response = conn.getresponse()
         tarMeta.writelines(response.read())
     except httplib.HTTPException, e:
@@ -114,7 +245,7 @@ def db_get_next_media_id(session_id, domain, config):
     params = urllib.urlencode({'domain': domain, 'eventType': event_type})
     conn = httplib.HTTPConnection(get_host_port(config))
     try:
-        conn.request('GET', get_transcript_xquery_url(config)+'/get-next-media-id.xql?'+params, None, {})
+        conn.request('GET', get_transcript_url(config)+'/xquery/get-next-media-id.xql?'+params, None, {})
         response = conn.getresponse()
         data = response.read()
         if '<exception>' in data:
@@ -134,8 +265,15 @@ def get_xquery_exception_msg(data):
     msg = data[data.find('<message>')+9:data.find('</message>')]
     return 'Xquery Error: \n'+path+'\n'+msg
 
+def delete_dir_content(dir):
+    shutil.rmtree(dir)
+    os.mkdir(dir)
+
 def get_tar_build_dir(config):
     return config.get('Main', 'tar_archive_dir')+'/work'
+
+def get_proxy_media_dir(config):
+    return config.get('Main', 'proxy_media_dir')
 
 def get_tar_blocking_factor(config):
     bs = config.getint('Tar', 'block_size_bytes')
@@ -144,75 +282,107 @@ def get_tar_blocking_factor(config):
 def get_tar_format(config):
     return config.get('Tar', 'archive_format')
 
-def media_in_type(file, domain, config):
-    media_types = config.get('MediaTypes', domain+'_types').split(',')
-    for type in media_types:
+def media_in_domain(file, domain, config):
+    domain_types = config.get('DomainFileTypes', domain).split(',')
+    for type in domain_types:
         if string.lower(file).endswith('.'+string.lower(type)):
             return True
     return False
 
-def get_new_media_id(session_id, domain, config, previous_id):
+def media_in_category(file, category, config): 
+    category_filetypes = config.get('CategoryFileTypes', category).split(',')
+    for type in category_filetypes:
+        if string.lower(file).endswith('.'+string.lower(type)):
+            return True
+    return False
+
+def db_media_id_exists(domain, id, config):
+    media_id_exists_for_domain_qry = 'exists(/session//mediaMetadata//'+domain+'[@id="'+id+'"])'
+    return exec_url_xquery_boolean(config, 'data', media_id_exists_for_domain_qry)
+
+def generate_new_id(session_id, domain, config, previous_id):
     if not previous_id:
-        id = db_get_next_media_id(session_id, domain, config)
+        return db_get_next_media_id(session_id, domain, config)
     else:
-        id = previous_id[:previous_id.find('-')]+'-'+str(int(previous_id[previous_id.find('-')+1:])+1)
+        return previous_id[:previous_id.find('-')]+'-'+str(int(previous_id[previous_id.find('-')+1:])+1)
+
+def get_id_from_filename(filepath, domain, config):
+    fn = get_filename(filepath)
+    id = string.lower(fn[:fn.rfind('.')])
+    if re.match('^[a-z]{1,3}-?[0-9]{1,7}$', id):
+        alpha = re.match('^[a-z]+', id)
+        alpha_index = alpha.end()
+        num = re.match('[0-9]+$', id)
+        num_index = num.start()
+        alpha_part = id[:alpha_index]
+        #This is to remove any leading zeros (which will prevent ids from matching)
+        num_part = int(id[num_index:])
+        if num_part == 0:
+            print 'Media filename cannot have a zero digit component.'
+            print 'create-archive script terminated.'
+            sys.exit(2)
+        #Insert hyphen if un-hyphenated
+        id = alpha_part+'-'+str(num_part)
+        if db_media_id_exists(domain, id, config):
+            print 'The '+domain+' media id: '+id+' has already been used.'
+            print 'create-archive script terminated.'
+            sys.exit(2)
+    else:
+        print 'Captured media filename: '+fn+' in wrong format.'
+        print 'create-archive script terminated.'
+        sys.exit(2)
+    return id   
+
+def get_new_media_id(session_id, domain, category, config, previous_id, filepath):
+    if category == 'sony-xdcam':
+        id = generate_new_id(session_id, domain, config, previous_id)
+    elif category == 'video-dig':
+        id = get_id_from_filename(filepath, domain, config)
+    elif category == 'fostex-audio':
+        id = generate_new_id(session_id, domain, config, previous_id)
+    elif category == 'audio-dig':
+        id = get_id_from_filename(filepath, domain, config)
+    else:
+        print 'Undefined media category: '+category
+        print 'create-archive script terminated.'
+        sys.exit(2)
     return id
         
-def generate_db_media_xml_element(media_path, domain, media_id):
-    if (domain == 'video'):
-        if is_sony_xdcam_video(media_path):
-            return get_xdcam_metadata_xml(media_path, domain, media_id)
-        elif is_captured_dv_tape(media_path):
-            return get_dv_tape_metadata_xml(media_path, domain, media_id)
-    elif (domain == 'audio'):
-        if is_fostex_audio(media_path):
-            return get_fostex_audio_metadata_xml(media_path, domain, media_id)
-        elif is_captured_md(media_path):
-            return get_md_metadata_xml(media_path, domain, media_id)
-    
-            
-def is_sony_xdcam_video(media_path):
-    if 'BPAV/CLPR' in media_path and (string.lower(media_path)).endswith('.mp4'):
-        return True
-    return False
-
-def is_captured_dv_tape(media_path):
-    if (string.lower(media_path)).endswith('.mov'):
-        return True
-    return False
-
-def is_fostex_audio(media_path):
-    fostex_date_re = '^B[0-9]{2}h[0-9]{2}m[0-9]{2}s[0-9]{2}[a-z]{3}[0-9]{4}\.wav$'
-    if re.match(fostex_date_re, get_filename(media_path)):
-        return True
-    return False
-
-def is_captured_md(media_path):
-    if (string.lower(media_path)).endswith('.wav'):
-        return True
-    return False
+def generate_db_media_xml_element(media_path, domain, category, media_id, config):
+    if category == 'sony-xdcam' and media_in_category(media_path, category, config):
+        mfile = open(media_path, 'r')
+        num_bytes_mp4_xml_data = 1143
+        mfile.seek(-num_bytes_mp4_xml_data, 2)
+        mp4xml = mfile.read()
+        timestamp = get_sonyxdcam_timestamp(mp4xml)
+        original_id = get_original_id(media_path)
+        duration = get_media_duration(media_path)
+        auto_split = get_autosplit(media_path)
+        attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration,'autoSplit':auto_split}    
+    elif category == 'video-dig' and media_in_category(media_path, category, config):
+        duration = get_media_duration(media_path)
+        attributes = {'originalId':original_id, 'duration':duration}
+    elif category == 'fostex-audio' and media_in_category(media_path, category, config):
+        timestamp = get_fostexaudio_timestamp(media_path)
+        original_id = get_original_id(media_path)
+        duration = get_media_duration(media_path)
+        attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration}
+    elif category == 'audio-dig'and media_in_category(media_path, category, config):
+        duration = get_media_duration(media_path)
+        attributes = {'originalId':original_id,'duration':duration}
+    else:
+        original_id = get_original_id(media_path)
+        attributes = {'originalId':original_id}
+    return create_media_xml_element(domain, attributes, media_id)
 
 def get_filename(pathname):
-    return pathname[str(pathname).rfind('/')+1:len(str(pathname))]
+    return pathname[str(pathname).rfind('/')+1:]
 
 def get_path(pathname):
     return pathname[:str(pathname).rfind('/')]
-    
-def get_xdcam_metadata_xml(media_path, domain, media_id):
-    supp_xml_path = media_path[0:-4]+'M01.XML'
-    xfile = open(supp_xml_path)
-    timestamp = get_xdcam_timestamp(xfile)
-    original_id = get_xdcam_original_id(supp_xml_path)
-    xfile.close()
-    duration = get_media_duration(media_path)
-    auto_split = get_xdcam_autosplit(media_path)
-    attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration,'autoSplit':auto_split}
-    return create_media_xml_element(domain, attributes, media_id)
-    
-def get_dv_tape_metadata_xml(media_path, domain, media_id):
-    duration = get_media_duration(media_path)
-    attributes = {'duration':duration}
-    return create_media_xml_element(domain, attributes, media_id)
+
+def get_file_extn(pathname):
+    return pathname[str(pathname).rfind('.')+1:]
     
 def create_media_xml_element(domain, attributes, media_id):
     #Using underscore is a hack to put id as the first attribute - due to crap implementation of minidom toxml() and toprettyxml()
@@ -223,17 +393,27 @@ def create_media_xml_element(domain, attributes, media_id):
     media_xml += '/>'
     return media_xml
 
-def get_xdcam_timestamp(xmlfile) :
-    xmlfile.seek(0)
-    for line in xmlfile:
-        if 'CreationDate' in line:
-            ts = line[line.find('"')+1:line.rfind('"')-6]
-            return ts
+def get_sonyxdcam_timestamp(xml):
+    start = xml.find('<CreationDate value="')+21
+    return xml[start:start+19]
 
-def get_xdcam_original_id(xmlfile):
-    return xmlfile[xmlfile.rfind('/')+1:-7]
+def get_fostexaudio_timestamp(filepath):
+    fn = get_filename(filepath)
+    year = fn[15:19]
+    month_word = fn[12:15]
+    day = fn[10:12]
+    hr = fn[1:3]
+    min = fn[4:6]
+    sec = fn[7:9]
+    months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+    month = '%02d' % (months.index(month_word) + 1)
+    dt = year+'-'+month+'-'+day+'T'+hr+':'+min+':'+sec
+    return dt 
 
-def get_xdcam_autosplit(media_path):
+def get_original_id(file):
+    return file[file.rfind('/')+1:-4]
+
+def get_autosplit(media_path):
     suffix = int(media_path[-6:-4])
     extn = media_path[-3:]
     next_suffix = '%02d' % (suffix +1)
@@ -315,33 +495,39 @@ def get_filesize(file):
     return os.path.getsize(file)
            
 def db_add_media_xml(config, db_media_xml_doc, username, password):  
+
     deviceElement = db_media_xml_doc.getElementsByTagName('device')[0]
     session_id = deviceElement.getAttribute('sessionId')
     device_code = deviceElement.getAttribute('code')
+    base64string = base64.encodestring('%s:%s' % (username, password))[:-1]
+    authheader =  "Basic %s" % base64string
+    headers = {'Authorization': authheader}
+    conn = httplib.HTTPConnection(get_host_port(config))
+    
+    if len(deviceElement.childNodes) == 0:
+        print 'Internal Error: No session-media xml nodes generated.'
+        print 'create-archive script terminated.'
+        sys.exit(2)
+    
     for mediaElem in deviceElement.childNodes:
         if mediaElem.nodeType == xml.dom.Node.ELEMENT_NODE:
             element_xml = str(mediaElem.toxml())
+            #Hack to put id as the first attribute
+            element_xml = string.replace(element_xml, '_id="', 'id="')
             params = urllib.urlencode({'sessionId': session_id, 'deviceCode': device_code, 'mediaXML': element_xml})
-            base64string = base64.encodestring('%s:%s' % (username, password))[:-1]
-            authheader =  "Basic %s" % base64string
-            headers = {'Authorization': authheader}
-            conn = httplib.HTTPConnection(get_host_port(config))
             try:
-                conn.request('GET', get_transcript_xquery_url(config)+'/import-media-element.xql?'+params, None, headers)
+                conn.request('GET', get_transcript_url(config)+'/xquery/import-media-element.xql?'+params, None, headers)
                 response = conn.getresponse()
                 data = response.read()
-                print data
                 if '<exception>' in data:
                     print get_xquery_exception_msg(data)
                     print 'create-archive script terminated'
                     sys.exit(2)
-                else:
-                    return data
             except httplib.HTTPException, e:
                 print e.msg
                 print 'Unable to connect to database'
-            else:
-                conn.close()
+    conn.close()
+    return True
 
 def append_tar_media_xml_element(doc, filepath, domain, media_id):
     mediaElement = doc.createElement(domain)
@@ -368,7 +554,7 @@ def update_block_xml_attributes(tar_xml_doc, line, config):
         mediaElems = tar_xml_doc.getElementsByTagName(domain)
         for e in mediaElems:
             if e.getAttribute('_id') == id:
-                if media_in_type(filename, domain, config):
+                if media_in_domain(filename, domain, config):
                     e.setAttribute('recordOffset', str(offset))
                 elif filename.endswith('.par2.tar'):
                     par2Elem = e.getElementsByTagName('par2Tar')[0]
