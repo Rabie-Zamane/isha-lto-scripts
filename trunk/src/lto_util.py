@@ -8,7 +8,6 @@ import os
 import xml.dom.minidom
 import subprocess
 import string
-import md5sum2
 import base64 
 import re
 import sys
@@ -17,9 +16,10 @@ import urllib
 import httplib
 import shutil
 import datetime
+import hashlib
 
 
-def check_args(options):
+def check_archive_args(options):
     if options.session_id == None or options.session_id =="":
         print 'Argument Error: session id not specified. create-archive script terminated.'
         sys.exit(2)
@@ -30,6 +30,9 @@ def check_args(options):
         print 'Argument Error: media path not specified. create-archive script terminated.'
         sys.exit(2)
 
+def get_script_name():
+    return get_filename(sys.argv[0])
+
 def media_path_check(path):
     if not os.path.exists(path):
         print 'Argument Error: '+path+' is not a valid path. create-archive script terminated.'
@@ -37,8 +40,8 @@ def media_path_check(path):
 
 def path_check(path):
     if not os.path.exists(path):
-        print 'Config Error: '+path+' does not exist. Please create it before running the script.' 
-        print 'create-archive script terminated.'
+        print 'Path Error: '+path+' does not exist.' 
+        print get_script_name()+' script terminated.'
         sys.exit(2)
 
 def get_media_category(config, path):
@@ -59,7 +62,7 @@ def get_media_category(config, path):
         return 'audio'
     else:
         print 'Path must terminate with one of the following directory names: '+xdcamDir+', '+dvDir+', '+fostexDir+', '+mdDir
-        print 'create-archive script terminated.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     
 def media_file_types_check(config, category, path):
@@ -85,12 +88,12 @@ def media_file_types_check(config, category, path):
         if proceed == 'y':
             return
         else:
-            print '\ncreate-archive script terminated.'
+            print get_script_name()+' script terminated.'
             sys.exit(2)
             
     elif media_file_count == 0:
         print 'No recognised media files were found in: '+path
-        print '\ncreate-archive script terminated.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     
 def exec_url_xquery_boolean(config, collection, query):
@@ -140,7 +143,7 @@ def session_device_check(config, session_id, device_code):
         if cont == 'y':
             return 
         else:
-            print 'Create-archive script terminated.'
+            print get_script_name()+' script terminated.'
             sys.exit(2)
     
 def config_checks(config):
@@ -229,14 +232,28 @@ def move_tar_files(config, session_id, device_code):
     archive_id = session_id+'-'+device_code
     tar = tb+'/'+archive_id+'.tar'
     xml = tb+'/'+archive_id+'.xml'
-    dest = config.get('Dirs', 'tar_archive_dir') 
-    try:
-        shutil.move(xml, dest)
-        shutil.move(tar, dest)
+    dest = config.get('Dirs', 'tar_archive_dir')
+    try: 
+        print '\nMoving '+archive_id+'.tar to '+dest 
+        move(tar, dest)
+        print '\nMoving '+archive_id+'.xml to '+dest 
+        move(xml, dest)
     except Exception, e:
-        print 'Unable to move archive files to: '+dest
-        print 'create-archive script terminated.'
+        print '\nUnable to move archive files to: '+dest
+        print get_script_name()+' script terminated.'
         sys.exit(2)
+        
+def move(filepath, dirpath):
+    #Using native command line tool mv - since shutils.move copies and renames even for files on the same file system !! :-(
+    if not os.path.exists(filepath):
+        print 'IO Error: File '+filepath+' does not exist.'
+        print lto_util.get_script_name()+' script terminated.'
+    if not os.path.isdir(dirpath):
+        print 'IO Error: File '+dirpath+' is not a directory.'
+        print lto_util.get_script_name()+' script terminated.'
+    p = subprocess.Popen('mv '+filepath+' '+dirpath, shell=True, stderr=subprocess.PIPE)
+    sts = os.waitpid(p.pid, 0)
+    terminate_on_error(p.stderr.read())
 
 def create_referenced_items_file(config, session_id):
     tarMeta = open(os.path.join(get_tar_build_dir(config), 'referenced-items.xml'),'w')
@@ -262,7 +279,7 @@ def db_get_next_media_id(session_id, domain, config):
         data = response.read()
         if '<exception>' in data:
             print get_xquery_exception_msg(data)
-            print 'create-archive script terminated'
+            print get_script_name()+' script terminated.'
             sys.exit(2)
         else:
             return data
@@ -277,8 +294,17 @@ def get_xquery_exception_msg(data):
     return 'Xquery Error: \n'+path+'\n'+msg
 
 def delete_dir_content(dir):
-    shutil.rmtree(dir)
-    os.mkdir(dir)
+    print '\nDeleting contents of '+dir
+    try:
+        shutil.rmtree(dir)
+        os.mkdir(dir)
+    except IOError:
+        print 'IO Error: Unable to delete content of '+dir
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+    else:
+        print 'OK'
+    
 
 def get_tar_build_dir(config):
     return config.get('Dirs', 'tar_archive_dir')+'/work'
@@ -336,17 +362,17 @@ def get_id_from_filename(filepath, domain, config):
         num_part = int(id[num_index:])
         if num_part == 0:
             print 'Media filename cannot have a zero digit component.'
-            print 'create-archive script terminated.'
+            print get_script_name()+' script terminated.'
             sys.exit(2)
         #Insert hyphen if un-hyphenated
         id = alpha_part+'-'+str(num_part)
         if db_media_id_exists(domain, id, config):
             print 'The '+domain+' media id: '+id+' has already been used.'
-            print 'create-archive script terminated.'
+            print get_script_name()+' script terminated.'
             sys.exit(2)
     else:
         print 'Captured media filename: '+fn+' in wrong format.'
-        print 'create-archive script terminated.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     return id   
 
@@ -361,7 +387,7 @@ def get_new_media_id(session_id, domain, category, config, previous_id, filepath
         id = get_id_from_filename(filepath, domain, config)
     else:
         print 'Undefined media category: '+category
-        print 'create-archive script terminated.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     return id
         
@@ -492,9 +518,9 @@ def generate_low_res(domain, filepath, dir):
     
 def get_video_type(filepath):
     p = subprocess.Popen('ffmpeg -i '+filepath, shell=True, stderr=subprocess.PIPE)
-    stdout_value = p.stderr.readlines()
+    stderr_value = p.stderr.readlines()
     sts = os.waitpid(p.pid, 0)
-    for line in stdout_value:
+    for line in stderr_value:
         if ('Video: dvvideo' in line) and ('720x576' in line):
             return 'DV_PAL'
         elif ('Video: dvvideo' in line) and ('720x480' in line):
@@ -506,8 +532,21 @@ def get_video_type(filepath):
     return False
         
 def get_md5_hash(file):
-    return md5sum2.sum(file)
-
+    bufsize = 8096
+    fp = open(file, 'rb')
+    m = hashlib.md5()
+    try:
+        while 1:
+            data = fp.read(bufsize)
+            if not data:
+                break
+            m.update(data)
+    except IOError, msg:
+        print 'MD5 IO Error: '+msg+'\n' 
+        print lto_util.get_script_name()+' script terminated.'
+        sys.exit(2)
+    return m.hexdigest()
+ 
 def get_filesize(file):
     return os.path.getsize(file)
            
@@ -603,5 +642,24 @@ def get_dir_total_size(dir):
 def get_curr_datetime():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%dT%H:%M:%S")
+
+def terminate_on_error(stderr):
+    if not stderr:
+        print 'OK'
+    else:
+        print 'Error: '+stderr
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
         
+def move_virtual_tape_dir(config, tape_id, src_stage, dest_stage):
+    dest = config.get('Dirs', 'virtual_tape_dir')+'/'+dest_stage
+    src = config.get('Dirs', 'virtual_tape_dir')+'/'+src_stage+'/'+tape_id
+    try: 
+        print 'Moving virtual tape folder '+src+' to '+dest 
+        move(src, dest)
+    except Exception, e:
+        print '\nUnable to move '+src+' to '+dest 
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+
     

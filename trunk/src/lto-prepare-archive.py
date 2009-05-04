@@ -38,7 +38,6 @@ def media_process_loop(domain, category, config, session_id, path, db_media_xml_
                     
                     
 def create_tar_archive(config, session_id, device_code, tar_xml_doc):
-    
     tar_name = session_id+'-'+device_code+'.tar'
     tar_path = lto_util.get_tar_build_dir(config)+'/'+tar_name
     block_size_bytes = int(config.get('Tape', 'block_size_bytes'))
@@ -50,7 +49,7 @@ def create_tar_archive(config, session_id, device_code, tar_xml_doc):
     filelist.sort()   
     
     filelist_str = 'referenced-items.xml '+string.join(filelist, ' ')
-    print 'Creating tar archive: '+tar_path
+    print '\nCreating tar archive: '+tar_path
     p = subprocess.Popen('tar -cvR -b '+str(blocking_factor)+' --format='+lto_util.get_tar_format(config)+' -C '+lto_util.get_tar_build_dir(config)+' -f '+tar_path+' '+filelist_str, shell=True, stdout=subprocess.PIPE)
     stdout_value = p.stdout.readlines()
     del stdout_value[0]
@@ -73,21 +72,21 @@ def create_tar_xml_file(config, session_id, device_code, tar_xml_doc):
 def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc):
     
     #Ask user for confirmation to write media xml to database
-    update = raw_input('Update database with session-media metadata? [y/n]: ')
+    update = raw_input('\nUpdate database with session-media metadata? [y/n]: ')
     xml_media_filename = session_id+'-'+device_code+'-media.xml' 
     xml_media_filepath = config.get('Dirs', 'tar_archive_dir')+'/'+xml_media_filename
     if update == 'y':
         username = raw_input('username: ')
         password = getpass.getpass('password: ')
         if lto_util.db_add_media_xml(config, db_media_xml_doc, username, password):
-            print 'Database updated'
+            print '\nDatabase updated'
         else:
-            print 'Failed to update database'
+            print '\nFailed to update database'
             lto_util.write_xml(db_media_xml_doc, xml_media_filepath)
-            print 'Media xml saved to '+xml_media_filepath
+            print '\nMedia xml saved to '+xml_media_filepath
     else:
         lto_util.write_xml(db_media_xml_doc, xml_media_filepath)
-        print 'Media xml saved to '+xml_media_filepath
+        print '\nMedia xml saved to '+xml_media_filepath
        
 
 def main():
@@ -98,7 +97,7 @@ def main():
     parser.add_option("-p", "--path", dest="path", type="string", help="Specify path to media files")
     (options, args) = parser.parse_args()
 
-    lto_util.check_args(options)
+    lto_util.check_archive_args(options)
     session_id = options.session_id
     device_code = options.device_code
     path = options.path

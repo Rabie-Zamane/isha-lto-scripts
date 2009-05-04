@@ -25,7 +25,7 @@ def main():
         
     lto_tape_util.update_tape_xml(tape_xml_doc, tape_id)
     lto_tape_util.write_tape_xml_file(config, tape_xml_doc, tape_id)
-    lto_tape_util.move_virtual_tape_files(config, tape_id)
+    lto_tape_util.move_build_virtual_tape_files(config, tape_id)
     lto_util.delete_dir_content(lto_util.get_tape_build_dir(config))
 
 

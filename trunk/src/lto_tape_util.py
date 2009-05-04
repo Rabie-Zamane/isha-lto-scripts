@@ -17,26 +17,31 @@ import lto_util
 
 
 def check_tape_build_dir_contents(dir):
+    if len(os.listdir(dir)) == 0:
+        print 'The tape build directory '+dir+' is empty!'
+        print 'You must first manually transfer a set of tar,xml file pairs here (from the tar build directory).'
+        print lto_util.get_script_name()+' script terminated.'
+        sys.exit(2)
     for f in os.listdir(dir):
         if os.path.isdir(os.path.join(dir, f)):
             print 'The tape build directory: '+dir+' must not contain any sub-directories.'
-            print '\ncreate-virtual-tape script terminated.'
+            print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
         elif not (f.endswith('.tar') or f.endswith('.xml')):
             print 'The tape build directory: '+dir+' contains unidentified files.'
-            print '\ncreate-virtual-tape script terminated.'
+            print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
         elif f.endswith('.tar'):
             fid = f[:-4]
             if not os.path.exists(os.path.join(dir, fid+'.xml')):
                 print 'The tape build directory: '+dir+' contains tar files without matching xml files.'
-                print '\ncreate-virtual-tape script terminated.'
+                print lto_util.get_script_name()+' script terminated.'
                 sys.exit(2)
         elif f.endswith('.xml'):
             fid = f[:-4]
             if not os.path.exists(os.path.join(dir, fid+'.tar')):
                 print 'The tape build directory: '+dir+' contains xml files without matching tar files.'
-                print '\ncreate-virtual-tape script terminated.'
+                print lto_util.get_script_name()+' script terminated.'
                 sys.exit(2)
                 
 def check_tape_build_size(config):
@@ -52,11 +57,11 @@ def check_tape_build_size(config):
     
     if size > max_size:
         print 'The total size of the files in the tape build directory: '+dir+' is over the maximum limit of '+str(max_gbs)+'GB.'
-        print '\ncreate-virtual-tape script terminated.'
+        print lto_util.get_script_name()+' script terminated.'
         sys.exit(2)    
     elif size < min_size:
         print 'The total size of the files in the tape build directory: '+dir+' is under the minimum limit of '+str(min_gbs)+'GB.'
-        print '\ncreate-virtual-tape script terminated.'
+        print lto_util.get_script_name()+' script terminated.'
         sys.exit(2)
     else:
         print 'Virtual tape size: '+'%3.2f'%size_gb+'GB'
@@ -116,23 +121,23 @@ def db_import_tape_xml(config, tape_xml_doc):
         if '<exception>' in data:
             print lto_util.get_xquery_exception_msg(data)
             print 'Unable to update database.'
-            print 'create-virtual-tape script terminated.'
+            print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
         elif 'HTTP ERROR: 404' in data:
             print '\nHTTP ERROR: 404'
             print data[data.find('<title>')+7:data.find('</title>')]
-            print 'create-virtual-tape script terminated.'
+            print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
         elif response.status == 401 and response.reason == 'Unauthorized':
             print 'Authentication Failed.'
-            print 'create-virtual-tape script terminated.'
+            print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
         else:
             print '\nDatabase updated (tape id: '+data+').'
     except httplib.HTTPException, e:
         print e.msg
         print 'Unable to connect to database'
-        print 'create-virtual-tape script terminated.'
+        print lto_util.get_script_name()+' script terminated.'
         conn.close()
         sys.exit(2)
     else:
@@ -146,23 +151,24 @@ def update_tape_xml(doc, id):
 
 def write_tape_xml_file(config, tape_xml_doc, tape_id):
     tape_xml_filepath = lto_util.get_tape_build_dir(config)+'/'+tape_id+'.xml'
+    print 'Creating tape index file '+tape_xml_filepath
     lto_util.write_xml(tape_xml_doc, tape_xml_filepath)
     
-def move_virtual_tape_files(config, tape_id):
+def move_build_virtual_tape_files(config, tape_id):
     dest = config.get('Dirs', 'virtual_tape_dir')+'/pending/'+tape_id
     try:
         os.mkdir(dest)
         print 'Created virtual tape directory: '+dest
     except os.OSError, e:
         print 'Unable to create virtual tape directory: '+dest
-        print 'create-archive script terminated.'
+        print lto_util.get_script_name()+' script terminated.'
         sys.exit(2)
     tb = lto_util.get_tape_build_dir(config)
     for f in os.listdir(tb):
-        try:
-            shutil.move(tb+'/'+f, dest)
+        try: 
+            print 'Moving '+tb+'/'+f+' to '+dest 
+            lto_util.move_files_into_dir(tb+'/'+f, dest)
         except Exception, e:
-            print 'Unable to move files to: '+dest
-            print 'create-archive script terminated.'
+            print '\nUnable to move file '+f+' to '+dest
+            print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
-    print 'Files transferred from '+lto_util.get_tape_build_dir(config)+' to '+dest
