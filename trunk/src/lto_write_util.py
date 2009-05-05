@@ -92,9 +92,9 @@ def setup_tape_drive(config):
     sts = os.waitpid(p.pid, 0)
     lto_util.terminate_on_error(p.stderr.read())
     print 'Rewinding tape'
-    p = subprocess.Popen('mt -f '+tape+' rewind', shell=True, stderr=subprocess.PIPE)
-    sts = os.waitpid(p.pid, 0)
-    lto_util.terminate_on_error(p.stderr.read())
+    #p = subprocess.Popen('mt -f '+tape+' rewind', shell=True, stderr=subprocess.PIPE)
+    #sts = os.waitpid(p.pid, 0)
+    #lto_util.terminate_on_error(p.stderr.read())
         
 def write_tape(config, tape_id):
     print '\nWriting tape'

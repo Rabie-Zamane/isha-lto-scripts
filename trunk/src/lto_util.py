@@ -95,22 +95,24 @@ def media_file_types_check(config, category, path):
         print 'No recognised media files were found in: '+path
         print get_script_name()+' script terminated.'
         sys.exit(2)
-    
-def exec_url_xquery_boolean(config, collection, query):
+        
+def exec_url_xquery(config, collection, query):
     try:
         conn = httplib.HTTPConnection(get_host_port(config))
         params = urllib.urlencode({'_query': query})
-        conn.request('GET', get_transcript_url(config)+'/'+collection+'?'+params, None, {})
+        conn.request('GET', collection+'?'+params, None, {})
         response = conn.getresponse()
-        data = response.read()
-        if '<exist:value exist:type="xs:boolean">true</exist:value>' in data:
-            return True
-        else:
-            return False
+        return response.read()
     except httplib.HTTPException, e:
         print 'Unable to execute xquery'
     else:
         conn.close()
+        
+def get_parsed_xquery_value(result):
+    doc = xml.dom.minidom.parseString(result) 
+    node = doc.getElementsByTagName('exist:value')[0]
+    return node.firstChild.nodeValue
+    
         
 def valid_chars(string):
     return re.match(r'^[a-zA-Z0-9-_]+$', string)
@@ -127,13 +129,16 @@ def session_device_check(config, session_id, device_code):
     device_exists_qry = 'exists(//deviceCode[@id="'+device_code+'"])'
     media_exists_for_session_device_qry = 'exists(/session[@id="'+session_id+'"]//device[@code="'+device_code+'"]/*)'
     
-    if not exec_url_xquery_boolean(config, 'data', session_exists_qry):
+    xquery_result = exec_url_xquery(config, get_transcript_url(config)+'/data', session_exists_qry)
+    if not get_parsed_xquery_value(xquery_result) == 'true':
         print 'session id: '+session_id+' does not yet exist. create-archive-script terminated.'
         sys.exit(2)
-    if not exec_url_xquery_boolean(config, 'reference', device_exists_qry):
+    xquery_result = exec_url_xquery(config, get_transcript_url(config)+'/reference', device_exists_qry)
+    if not get_parsed_xquery_value(xquery_result) == 'true':
         print 'device code: '+device_code+' does not exist. create-archive-script terminated.'
         sys.exit(2)
-    if exec_url_xquery_boolean(config, 'data', media_exists_for_session_device_qry):
+    xquery_result = exec_url_xquery(config, get_transcript_url(config)+'/data', media_exists_for_session_device_qry)   
+    if get_parsed_xquery_value(xquery_result) == 'true':
         print 'At least one media item has already been associated with session: '+session_id+' and device: '+device_code
         print
         print 'To see the associated media items for this session open the following link in your browser:'
@@ -198,6 +203,15 @@ def get_transcript_url(config):
 
 def get_lto_url(config):
     return config.get('Connection', 'lto_xmldb_root')
+
+def get_lto_url(config):
+    return config.get('Connection', 'lto_xmldb_root')
+
+def get_blocksize(config):
+    return config.get('Tape', 'block_size_bytes')
+
+def get_tape_device(config):
+    return config.get('Tape', 'device')
     
 def create_db_session_media_xml(session_id, device_code):
     doc = xml.dom.minidom.Document()
@@ -592,10 +606,12 @@ def append_tar_media_xml_element(doc, filepath, domain, media_id):
     mediaElement.setAttribute('_id', media_id)
     mediaElement.setAttribute('md5', get_md5_hash(filepath))
     mediaElement.setAttribute('size', str(get_filesize(filepath)))
+    mediaElement.setAttribute('filename', get_filename(filepath))
     doc.documentElement.appendChild(mediaElement)
     par2TarElement = doc.createElement('par2Tar')
     par2TarElement.setAttribute('md5', get_md5_hash(filepath+'.par2.tar'))
     par2TarElement.setAttribute('size', str(get_filesize(filepath+'.par2.tar')))
+    par2TarElement.setAttribute('filename', get_filename(filepath)+'.par2.tar')
     mediaElement.appendChild(par2TarElement)
 
 def append_db_media_xml_element(doc, element_string):

@@ -178,3 +178,4 @@ def move_build_virtual_tape_files(config, tape_id):
             print '\nUnable to move file '+f+' to '+dest
             print lto_util.get_script_name()+' script terminated.'
             sys.exit(2)
+            
