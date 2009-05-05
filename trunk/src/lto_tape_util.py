@@ -13,6 +13,7 @@ import base64
 import getpass
 import string
 import shutil
+import subprocess
 import lto_util
 
 
@@ -153,21 +154,26 @@ def write_tape_xml_file(config, tape_xml_doc, tape_id):
     tape_xml_filepath = lto_util.get_tape_build_dir(config)+'/'+tape_id+'.xml'
     print 'Creating tape index file '+tape_xml_filepath
     lto_util.write_xml(tape_xml_doc, tape_xml_filepath)
-    
+   
 def move_build_virtual_tape_files(config, tape_id):
     dest = config.get('Dirs', 'virtual_tape_dir')+'/pending/'+tape_id
     try:
-        os.mkdir(dest)
-        print 'Created virtual tape directory: '+dest
-    except os.OSError, e:
+        if not os.path.exists(dest):
+            os.mkdir(dest)
+        else:
+            lto_util.delete_dir_content(dest)
+    except OSError, e:
         print 'Unable to create virtual tape directory: '+dest
+        print 'OSError '+str(e.errno)+': '+e.strerror
         print lto_util.get_script_name()+' script terminated.'
         sys.exit(2)
+    print 'Created virtual tape directory: '+dest
+    
     tb = lto_util.get_tape_build_dir(config)
     for f in os.listdir(tb):
         try: 
             print 'Moving '+tb+'/'+f+' to '+dest 
-            lto_util.move_files_into_dir(tb+'/'+f, dest)
+            lto_util.move(tb+'/'+f, dest)
         except Exception, e:
             print '\nUnable to move file '+f+' to '+dest
             print lto_util.get_script_name()+' script terminated.'

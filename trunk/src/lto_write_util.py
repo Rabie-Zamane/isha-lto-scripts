@@ -100,15 +100,25 @@ def write_tape(config, tape_id):
     print '\nWriting tape'
     bs = int(config.get('Tape', 'block_size_bytes'))
     tape = config.get('Tape', 'device')
+    blocking_factor = bs/512
     tape_index_size = int(config.get('Tape', 'index_size_mb'))*1024*1024
-    tape_xml_path = lto_util.get_tape_pending_dir(config)+'/'+tape_id+'/'+tape_id+'.xml'
-    
+    tape_xml_path = lto_util.get_tape_pending_dir(config)+'/'+tape_id
+    tape_xml_file = tape_id+'.xml'
+    tape_xml_tarfile_path = tape_xml_path+'/'+tape_xml_file+'.tar'
     print 'Writing '+tape_id+'.xml index file at position 1 (block number 0)'
-    p = subprocess.Popen('dd if='+tape_xml_path+' of='+tape+' bs='+str(tape_index_size)+' conv=sync', shell=True)
+    #First create index tar file
+    p = subprocess.Popen('tar -c -b '+str(blocking_factor)+' --format='+lto_util.get_tar_format(config)+' -C '+tape_xml_path+' -f '+tape_xml_tarfile_path+' '+tape_xml_file, shell=True)
     sts = os.waitpid(p.pid, 0)
-    
-    doc = xml.dom.minidom.parse(tape_xml_path)
-    tar_elems = doc.getElementsByTagName('tar')
+    #Next use dd to pad the index tar file with null bytes so that it becomes the size given by tape_index_size
+    index_tar_size = lto_util.get_filesize(tape_xml_tarfile_path)
+    null_size = tape_index_size - index_tar_size
+    p = subprocess.Popen('dd if=/dev/zero of='+tape_xml_tarfile_path+' bs='+str(null_size)+' count=1 oflag=append conv=notrunc status=noxfer', shell=True)
+    sts = os.waitpid(p.pid, 0)
+    #Finally, use dd to write it to tape
+    p = subprocess.Popen('dd if='+tape_xml_tarfile_path+' of='+tape+' bs='+str(bs), shell=True)
+    sts = os.waitpid(p.pid, 0)
+    index_doc = xml.dom.minidom.parse(tape_xml_path+'/'+tape_xml_file)
+    tar_elems = index_doc.getElementsByTagName('tar')
     for index, tar in enumerate(tar_elems): 
         session_id = tar.getAttribute('sessionId')
         device_code = tar.getAttribute('deviceCode')

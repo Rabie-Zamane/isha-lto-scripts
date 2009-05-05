@@ -27,10 +27,10 @@ def main():
     
     lto_util.config_checks(config)
     lto_util.path_check(lto_util.get_tape_pending_dir(config)+'/'+tape_id)
-    #lto_write_util.verify_virtual_tape(config, tape_id)
+    lto_write_util.verify_virtual_tape(config, tape_id)
     
-    #lto_write_util.setup_tape_drive(config)
-    #lto_write_util.write_tape(config, tape_id)
+    lto_write_util.setup_tape_drive(config)
+    lto_write_util.write_tape(config, tape_id)
     lto_util.move_virtual_tape_dir(config, tape_id, 'pending', 'written')
     
     
