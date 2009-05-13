@@ -1,8 +1,3 @@
-'''
-Created on 14-Apr-2009
-
-@author: kevala
-'''
 
 import os
 import xml.dom.minidom
@@ -23,7 +18,7 @@ def get_script_name():
 
 def path_check(path):
     if not os.path.exists(path):
-        print 'Path Error: '+path+' does not exist.' 
+        print 'Directory '+path+' does not exist.' 
         print get_script_name()+' script terminated.'
         sys.exit(2)
         

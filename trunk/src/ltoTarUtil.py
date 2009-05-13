@@ -1,8 +1,3 @@
-'''
-Created on 12-May-2009
-
-@author: kevala
-'''
 
 import os
 import subprocess
@@ -14,20 +9,25 @@ import urllib
 import httplib
 import re
 import base64
-import lto_util
+import ltoUtil
 
-def check_archive_args(options):
-    if options.session_id == None or options.session_id =="":
-        print 'Argument Error: session id not specified. create-archive script terminated.'
+def check_tar_args(args):
+    if args[0] == None or args[0] =="":
+        print 'Session id not specified.' 
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-    if options.device_code == None or options.device_code =="":
-        print 'Argument Error: device code not specified. create-archive script terminated.'
+    if args[1] == None or args[1] =="":
+        print 'Device code not specified.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-    if options.path == None or options.path =="":
-        print 'Argument Error: media path not specified. create-archive script terminated.'
+    if args[2] == None or args[2] =="":
+        print 'Media path not specified.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
         
 def get_media_category(config, path):
+    if path.endswith('/'):
+        path = path[:-1]
     last_dir = path[path.rfind('/')+1:]
     
     xdcamDir = config.get('CategoryFolders', 'sony-xdcam')
@@ -35,7 +35,7 @@ def get_media_category(config, path):
     fostexDir = config.get('CategoryFolders', 'fostex-audio')
     marantzDir = config.get('CategoryFolders', 'marantz-audio')
     mdDir = config.get('CategoryFolders', 'audio')
-    
+
     if last_dir == xdcamDir:
         return 'sony-xdcam'
     elif last_dir == dvDir:
@@ -48,7 +48,7 @@ def get_media_category(config, path):
         return 'audio'
     else:
         print 'Path must terminate with one of the following directory names: '+xdcamDir+', '+dvDir+', '+fostexDir+', '+marantzDir+', '+mdDir
-        print lto_util.get_script_name()+' script terminated.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
 
 def media_file_types_check(config, category, path):
@@ -74,46 +74,50 @@ def media_file_types_check(config, category, path):
         if proceed == 'y':
             return
         else:
-            print lto_util.get_script_name()+' script terminated.'
+            print ltoUtil.get_script_name()+' script terminated.'
             sys.exit(2)
             
     elif media_file_count == 0:
         print 'No recognised media files were found in: '+path
-        print lto_util.get_script_name()+' script terminated.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
 
 def session_device_check(config, session_id, device_code):
-    if not lto_util.valid_chars(session_id):
-        print 'Argument Error: Invalid characters used in session id. create-archive script terminated.'
+    if not ltoUtil.valid_chars(session_id):
+        print 'Invalid characters used in session id.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-    if not lto_util.valid_chars(device_code):
-        print 'Argument Error: Invalid characters used in device_code. create-archive script terminated.'
+    if not ltoUtil.valid_chars(device_code):
+        print 'Invalid characters used in device_code.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
         
     session_exists_qry = 'exists(/session[@id="'+session_id+'"])'
     device_exists_qry = 'exists(//deviceCode[@id="'+device_code+'"])'
     media_exists_for_session_device_qry = 'exists(/session[@id="'+session_id+'"]//device[@code="'+device_code+'"]/*)'
     
-    xquery_result = lto_util.exec_url_xquery(config, lto_util.get_transcript_url(config)+'/data', session_exists_qry)
-    if not lto_util.get_parsed_xquery_value(xquery_result) == 'true':
-        print 'session id: '+session_id+' does not yet exist. create-archive-script terminated.'
+    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', session_exists_qry)
+    if not ltoUtil.get_parsed_xquery_value(xquery_result) == 'true':
+        print 'session id: '+session_id+' does not yet exist.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-    xquery_result = lto_util.exec_url_xquery(config, lto_util.get_transcript_url(config)+'/reference', device_exists_qry)
-    if not lto_util.get_parsed_xquery_value(xquery_result) == 'true':
-        print 'device code: '+device_code+' does not exist. create-archive-script terminated.'
+    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/reference', device_exists_qry)
+    if not ltoUtil.get_parsed_xquery_value(xquery_result) == 'true':
+        print 'device code: '+device_code+' does not exist.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-    xquery_result = lto_util.exec_url_xquery(config, lto_util.get_transcript_url(config)+'/data', media_exists_for_session_device_qry)   
-    if lto_util.get_parsed_xquery_value(xquery_result) == 'true':
+    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', media_exists_for_session_device_qry)   
+    if ltoUtil.get_parsed_xquery_value(xquery_result) == 'true':
         print 'At least one media item has already been associated with session: '+session_id+' and device: '+device_code
         print
         print 'To see the associated media items for this session open the following link in your browser:'
-        print 'http://'+lto_util.get_host_port(config)+lto_util.get_transcript_url(config)+'/data?_query=/session[@id="'+session_id+'"]//mediaMetadata'
+        print 'http://'+ltoUtil.get_host_port(config)+ltoUtil.get_transcript_url(config)+'/data?_query=/session[@id="'+session_id+'"]//mediaMetadata'
         print
         cont = raw_input('Are you sure you want to continue? [y/n]: ')
         if cont == 'y':
             return 
         else:
-            print lto_util.get_script_name()+' script terminated.'
+            print ltoUtil.get_script_name()+' script terminated.'
             sys.exit(2)
 
 def create_db_session_media_xml(session_id, device_code):
@@ -135,33 +139,33 @@ def create_tar_xml_doc(session_id, device_code):
     return doc
 
 def get_new_filepath(config, domain, media_id, filepath):
-    tb = lto_util.get_tar_build_dir(config)
-    extn = string.lower(lto_util.get_file_extn(filepath))
+    tb = ltoUtil.get_tar_build_dir(config)
+    extn = string.lower(ltoUtil.get_file_extn(filepath))
     new_fp = tb+'/'+domain+'-'+media_id+'.'+extn
     return new_fp
 
 def move_tar_files(config, session_id, device_code):
-    tb = lto_util.get_tar_build_dir(config)
+    tb = ltoUtil.get_tar_build_dir(config)
     archive_id = session_id+'-'+device_code
     tar = tb+'/'+archive_id+'.tar'
     xml = tb+'/'+archive_id+'.xml'
     dest = config.get('Dirs', 'tar_archive_dir')
     try: 
         print '\nMoving '+archive_id+'.tar to '+dest 
-        lto_util.move(tar, dest)
+        ltoUtil.move(tar, dest)
         print '\nMoving '+archive_id+'.xml to '+dest 
-        lto_util.move(xml, dest)
+        ltoUtil.move(xml, dest)
     except Exception, e:
         print '\nUnable to move archive files to: '+dest
-        print lto_util.get_script_name()+' script terminated.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
 
 def create_referenced_items_file(config, session_id, device_code):
-    tarMeta = open(os.path.join(lto_util.get_tar_build_dir(config), session_id+'-'+device_code+'-referenced-items.xml'),'w')
+    tarMeta = open(os.path.join(ltoUtil.get_tar_build_dir(config), session_id+'-'+device_code+'-referenced-items.xml'),'w')
     params = urllib.urlencode({'sessionIds':session_id, 'deviceCodes':device_code})
-    conn = httplib.HTTPConnection(lto_util.get_host_port(config))
+    conn = httplib.HTTPConnection(ltoUtil.get_host_port(config))
     try:
-        conn.request('GET', lto_util.get_transcript_url(config)+'/xquery/get-referenced-items.xql?'+params, None, {})
+        conn.request('GET', ltoUtil.get_transcript_url(config)+'/xquery/get-referenced-items.xql?'+params, None, {})
         response = conn.getresponse()
         tarMeta.writelines(response.read())
     except httplib.HTTPException, e:
@@ -173,14 +177,14 @@ def create_referenced_items_file(config, session_id, device_code):
 def db_get_next_media_id(session_id, domain, config):
     event_type = session_id[:session_id.find('-')]
     params = urllib.urlencode({'domain': domain, 'eventType': event_type})
-    conn = httplib.HTTPConnection(lto_util.get_host_port(config))
+    conn = httplib.HTTPConnection(ltoUtil.get_host_port(config))
     try:
-        conn.request('GET', lto_util.get_transcript_url(config)+'/xquery/get-next-media-id.xql?'+params, None, {})
+        conn.request('GET', ltoUtil.get_transcript_url(config)+'/xquery/get-next-media-id.xql?'+params, None, {})
         response = conn.getresponse()
         data = response.read()
         if '<exception>' in data:
-            print lto_util.get_xquery_exception_msg(data)
-            print lto_util.get_script_name()+' script terminated.'
+            print ltoUtil.get_xquery_exception_msg(data)
+            print ltoUtil.get_script_name()+' script terminated.'
             sys.exit(2)
         else:
             return data
@@ -205,7 +209,7 @@ def media_in_category(file, category, config):
 
 def db_media_id_exists(domain, id, config):
     media_id_exists_for_domain_qry = 'exists(/session//mediaMetadata//'+domain+'[@id="'+id+'"])'
-    return lto_util.exec_url_xquery_boolean(config, 'data', media_id_exists_for_domain_qry)
+    return ltoUtil.exec_url_xquery_boolean(config, 'data', media_id_exists_for_domain_qry)
 
 def generate_new_id(session_id, domain, config, previous_id):
     if not previous_id:
@@ -226,17 +230,17 @@ def get_id_from_filename(filepath, domain, config):
         num_part = int(id[num_index:])
         if num_part == 0:
             print 'Media filename cannot have a zero digit component.'
-            print lto_util.get_script_name()+' script terminated.'
+            print ltoUtil.get_script_name()+' script terminated.'
             sys.exit(2)
         #Insert hyphen if un-hyphenated
         id = alpha_part+'-'+str(num_part)
         if db_media_id_exists(domain, id, config):
             print 'The '+domain+' media id: '+id+' has already been used.'
-            print lto_util.get_script_name()+' script terminated.'
+            print ltoUtil.get_script_name()+' script terminated.'
             sys.exit(2)
     else:
         print 'Captured media filename: '+fn+' in wrong format.'
-        print lto_util.get_script_name()+' script terminated.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
     return id   
 
@@ -253,7 +257,7 @@ def get_new_media_id(session_id, domain, category, config, previous_id, filepath
         id = get_id_from_filename(filepath, domain, config)
     else:
         print 'Undefined media category: '+category
-        print lto_util.get_script_name()+' script terminated.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
     return id
         
@@ -363,8 +367,8 @@ def generate_par2_tar(config, new_filepath):
     par2_numfiles = config.getint('Par2', 'num_files')
     par2_memory = config.getint('Par2', 'memory')
     
-    fn = lto_util.get_filename(new_filepath)
-    path = lto_util.get_path(new_filepath)
+    fn = ltoUtil.get_filename(new_filepath)
+    path = ltoUtil.get_path(new_filepath)
     
     print 'Generating PAR2 files for '+fn+'\n'
     p = subprocess.Popen(par2_cmd +' create -r'+str(par2_redundancy)+' -m'+str(par2_memory)+' -n'+str(par2_numfiles)+' '+new_filepath, shell=True)
@@ -375,7 +379,7 @@ def generate_par2_tar(config, new_filepath):
             par2files.append(f)
             
     par2filesstr = string.join(par2files, ' ')
-    p = subprocess.Popen('tar -c --format='+lto_util.get_tar_format(config)+' -C '+path+' -f '+new_filepath+'.par2.tar '+par2filesstr, shell=True)
+    p = subprocess.Popen('tar -c --format='+ltoUtil.get_tar_format(config)+' -C '+path+' -f '+new_filepath+'.par2.tar '+par2filesstr, shell=True)
     sts = os.waitpid(p.pid, 0)
     for p in par2files:
         os.remove(os.path.join(path, p))
@@ -389,7 +393,7 @@ def generate_low_res(domain, filepath, dir):
             preview_size = '512x288'
         preview_suff = 'h261_'+preview_size
         preview_file = filepath[0:-3]+preview_suff+'.mp4'
-        fn = lto_util.get_filename(preview_file)
+        fn = ltoUtil.get_filename(preview_file)
         p = subprocess.Popen('ffmpeg -y -i '+filepath+' -pass 1 -vcodec libx264 -vpre fastfirstpass -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+filepath+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre hq -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 '+dir+'/'+fn, shell=True)
         sts = os.waitpid(p.pid, 0)
         #Cleanup
@@ -421,11 +425,11 @@ def db_add_media_xml(config, db_media_xml_doc, username, password):
     base64string = base64.encodestring('%s:%s' % (username, password))[:-1]
     authheader =  "Basic %s" % base64string
     headers = {'Authorization': authheader}
-    conn = httplib.HTTPConnection(lto_util.get_host_port(config))
+    conn = httplib.HTTPConnection(ltoUtil.get_host_port(config))
    
     if len(deviceElement.childNodes) == 0:
         print 'Internal Error: No session-media xml nodes generated.'
-        print lto_util.get_script_name()+' script terminated.'
+        print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
     
     for mediaElem in deviceElement.childNodes:
@@ -435,12 +439,12 @@ def db_add_media_xml(config, db_media_xml_doc, username, password):
             element_xml = string.replace(element_xml, '_id="', 'id="')
             params = urllib.urlencode({'sessionId': session_id, 'deviceCode': device_code, 'mediaXML': element_xml})
             try:
-                conn.request('GET', lto_util.get_transcript_url(config)+'/xquery/import-media-element.xql?'+params, None, headers)
+                conn.request('GET', ltoUtil.get_transcript_url(config)+'/xquery/import-media-element.xql?'+params, None, headers)
                 response = conn.getresponse()
                 data = response.read()
                 if '<exception>' in data:
-                    print lto_util.get_xquery_exception_msg(data)
-                    print lto_util.get_script_name()+' script terminated.'
+                    print ltoUtil.get_xquery_exception_msg(data)
+                    print ltoUtil.get_script_name()+' script terminated.'
                     return False
                 elif response.status == 401 and response.reason == 'Unauthorized':
                     print 'Authentication Failed.'
@@ -453,14 +457,14 @@ def db_add_media_xml(config, db_media_xml_doc, username, password):
 def append_tar_media_xml_element(doc, filepath, domain, media_id):
     mediaElement = doc.createElement(domain)
     mediaElement.setAttribute('_id', media_id)
-    mediaElement.setAttribute('md5', lto_util.get_md5_hash(filepath))
-    mediaElement.setAttribute('size', str(lto_util.get_filesize(filepath)))
-    mediaElement.setAttribute('filename', lto_util.get_filename(filepath))
+    mediaElement.setAttribute('md5', ltoUtil.get_md5_hash(filepath))
+    mediaElement.setAttribute('size', str(ltoUtil.get_filesize(filepath)))
+    mediaElement.setAttribute('filename', ltoUtil.get_filename(filepath))
     doc.documentElement.appendChild(mediaElement)
     par2TarElement = doc.createElement('par2Tar')
-    par2TarElement.setAttribute('md5', lto_util.get_md5_hash(filepath+'.par2.tar'))
-    par2TarElement.setAttribute('size', str(lto_util.get_filesize(filepath+'.par2.tar')))
-    par2TarElement.setAttribute('filename', lto_util.get_filename(filepath)+'.par2.tar')
+    par2TarElement.setAttribute('md5', ltoUtil.get_md5_hash(filepath+'.par2.tar'))
+    par2TarElement.setAttribute('size', str(ltoUtil.get_filesize(filepath+'.par2.tar')))
+    par2TarElement.setAttribute('filename', ltoUtil.get_filename(filepath)+'.par2.tar')
     mediaElement.appendChild(par2TarElement)
 
 def append_db_media_xml_element(doc, element_string):
@@ -484,8 +488,8 @@ def update_block_xml_attributes(tar_xml_doc, line, config):
                     par2Elem.setAttribute('recordOffset', str(offset))
                
 def update_tar_xml_root_attributes(config, doc, tar_name):               
-    doc.documentElement.setAttribute('md5', lto_util.get_md5_hash(lto_util.get_tar_build_dir(config)+'/'+tar_name))
-    doc.documentElement.setAttribute('size', str(lto_util.get_filesize(lto_util.get_tar_build_dir(config)+'/'+tar_name)))
+    doc.documentElement.setAttribute('md5', ltoUtil.get_md5_hash(ltoUtil.get_tar_build_dir(config)+'/'+tar_name))
+    doc.documentElement.setAttribute('size', str(ltoUtil.get_filesize(ltoUtil.get_tar_build_dir(config)+'/'+tar_name)))
 
 def media_process_loop(domain, category, config, session_id, path, db_media_xml_doc, tar_xml_doc): 
     previous_id = None
@@ -499,11 +503,11 @@ def media_process_loop(domain, category, config, session_id, path, db_media_xml_
                 append_db_media_xml_element(db_media_xml_doc, db_media_xml_element)
                 
                 new_filepath = get_new_filepath(config, domain, media_id, filepath)
-                lto_util.copy_file(filepath, new_filepath)
+                ltoUtil.copy_file(filepath, new_filepath)
                 
                 generate_par2_tar(config, new_filepath)
-                proxy_media_dir = lto_util.get_proxy_media_dir(config)
-                #lto_util.generate_low_res(domain, new_filepath, proxy_media_dir)
+                proxy_media_dir = ltoUtil.get_proxy_media_dir(config)
+                #ltoUtil.generate_low_res(domain, new_filepath, proxy_media_dir)
                 append_tar_media_xml_element(tar_xml_doc, new_filepath, domain, media_id)
                 previous_id = media_id
                     
@@ -511,18 +515,18 @@ def media_process_loop(domain, category, config, session_id, path, db_media_xml_
 def create_tar_archive(config, session_id, device_code, tar_xml_doc):
     ref_file_name = session_id+'-'+device_code+'-referenced-items.xml'
     tar_name = session_id+'-'+device_code+'.tar'
-    tar_path = lto_util.get_tar_build_dir(config)+'/'+tar_name
+    tar_path = ltoUtil.get_tar_build_dir(config)+'/'+tar_name
     block_size_bytes = int(config.get('Tape', 'block_size_bytes'))
     blocking_factor = block_size_bytes/512
     filelist = []
-    for file in os.listdir(lto_util.get_tar_build_dir(config)):
+    for file in os.listdir(ltoUtil.get_tar_build_dir(config)):
         filelist.append(file)
     filelist.remove(ref_file_name)
     filelist.sort()   
     
     filelist_str = ref_file_name+' '+string.join(filelist, ' ')
     print '\nCreating tar archive: '+tar_path
-    p = subprocess.Popen('tar -cvR -b '+str(blocking_factor)+' --format='+lto_util.get_tar_format(config)+' -C '+lto_util.get_tar_build_dir(config)+' -f '+tar_path+' '+filelist_str, shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('tar -cvR -b '+str(blocking_factor)+' --format='+ltoUtil.get_tar_format(config)+' -C '+ltoUtil.get_tar_build_dir(config)+' -f '+tar_path+' '+filelist_str, shell=True, stdout=subprocess.PIPE)
     stdout_value = p.stdout.readlines()
     del stdout_value[0]
     for line in stdout_value:
@@ -533,7 +537,7 @@ def create_tar_archive(config, session_id, device_code, tar_xml_doc):
     
 def create_tar_xml_file(config, session_id, device_code, tar_xml_doc):
     
-    xmlfile = open(lto_util.get_tar_build_dir(config)+'/'+session_id+'-'+device_code+'.xml', "w")
+    xmlfile = open(ltoUtil.get_tar_build_dir(config)+'/'+session_id+'-'+device_code+'.xml', "w")
     pretty_doc = tar_xml_doc.toprettyxml()
     #Hack to put id attribute at the start
     pretty_doc = string.replace(pretty_doc, '_id="', 'id="')
@@ -554,9 +558,9 @@ def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc):
             print '\nDatabase updated'
         else:
             print '\nFailed to update database'
-            lto_util.write_xml(db_media_xml_doc, xml_media_filepath)
+            ltoUtil.write_xml(db_media_xml_doc, xml_media_filepath)
             print '\nMedia xml saved to '+xml_media_filepath
     else:
-        lto_util.write_xml(db_media_xml_doc, xml_media_filepath)
+        ltoUtil.write_xml(db_media_xml_doc, xml_media_filepath)
         print '\nMedia xml saved to '+xml_media_filepath
        
