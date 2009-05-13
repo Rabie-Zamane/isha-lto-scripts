@@ -20,7 +20,7 @@ import lto_util
 def check_tape_build_dir_contents(dir):
     if len(os.listdir(dir)) == 0:
         print 'The tape build directory '+dir+' is empty!'
-        print 'You must first manually transfer a set of tar,xml file pairs here (from the tar build directory).'
+        print 'You must first manually transfer a set of tar,xml file pairs here (from the tars directory).'
         print lto_util.get_script_name()+' script terminated.'
         sys.exit(2)
     for f in os.listdir(dir):
@@ -171,11 +171,12 @@ def move_build_virtual_tape_files(config, tape_id):
     
     tb = lto_util.get_tape_build_dir(config)
     for f in os.listdir(tb):
-        try: 
-            print 'Moving '+tb+'/'+f+' to '+dest 
-            lto_util.move(tb+'/'+f, dest)
-        except Exception, e:
-            print '\nUnable to move file '+f+' to '+dest
-            print lto_util.get_script_name()+' script terminated.'
-            sys.exit(2)
+        if f.endswith('.tar') or f == tape_id+'.xml':
+            try: 
+                print 'Moving '+tb+'/'+f+' to '+dest 
+                lto_util.move(tb+'/'+f, dest)
+            except Exception, e:
+                print '\nUnable to move file '+f+' to '+dest
+                print lto_util.get_script_name()+' script terminated.'
+                sys.exit(2)
             

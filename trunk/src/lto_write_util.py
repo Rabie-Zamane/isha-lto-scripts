@@ -60,20 +60,15 @@ def verify_virtual_tape(config, tape_id):
 def setup_tape_drive(config):
     bs = config.get('Tape', 'block_size_bytes')
     tape = config.get('Tape', 'device')
-    #if not os.path.exists(tape):
-    #   print 'Tape device '+tape+' is not available.'
-    #  print lto_util.get_script_name()+' script terminated.'
-    # sys.exit(2)
-    #Getting Drive status
     print 'Checking drive status\n'
     
-    while 1:
+    while True:
         p = subprocess.Popen('mt -f '+tape+' status', shell=True, stdout=subprocess.PIPE)
         stdout_value = p.stdout.read()
         sts = os.waitpid(p.pid, 0)
         if not 'ONLINE' in stdout_value:
             raw_input('Tape drive not ready. (Check drive is switched on and a tape is inserted). [Press Enter to continue]')
-            time.sleep(7)
+            time.sleep(6)
         else:
             break
         
@@ -92,9 +87,9 @@ def setup_tape_drive(config):
     sts = os.waitpid(p.pid, 0)
     lto_util.terminate_on_error(p.stderr.read())
     print 'Rewinding tape'
-    #p = subprocess.Popen('mt -f '+tape+' rewind', shell=True, stderr=subprocess.PIPE)
-    #sts = os.waitpid(p.pid, 0)
-    #lto_util.terminate_on_error(p.stderr.read())
+    p = subprocess.Popen('mt -f '+tape+' rewind', shell=True, stderr=subprocess.PIPE)
+    sts = os.waitpid(p.pid, 0)
+    lto_util.terminate_on_error(p.stderr.read())
         
 def write_tape(config, tape_id):
     print '\nWriting tape'
