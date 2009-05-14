@@ -3,7 +3,6 @@ import os
 import xml.dom.minidom
 import subprocess
 import string
-import base64 
 import re
 import sys
 import distutils.file_util
@@ -36,8 +35,11 @@ def exec_url_xquery(config, collection, query):
         
 def get_parsed_xquery_value(result):
     doc = xml.dom.minidom.parseString(result) 
-    node = doc.getElementsByTagName('exist:value')[0]
-    return node.firstChild.nodeValue
+    nodes = doc.getElementsByTagName('exist:value')
+    list = []
+    for n in nodes:
+        list.append(str(n.firstChild.nodeValue))
+    return list 
     
 def valid_chars(string):
     return re.match(r'^[a-zA-Z0-9-_]+$', string)
@@ -132,7 +134,7 @@ def delete_dir_content(dir):
         print get_script_name()+' script terminated.'
         sys.exit(2)
     else:
-        print 'OK'
+        print 'OK\n'
         
 def get_temp_dir(config):
     return config.get('Dirs', 'temp_dir')
@@ -154,6 +156,9 @@ def get_tape_written_dir(config):
 
 def get_proxy_media_dir(config):
     return config.get('Dirs', 'proxy_media_dir')
+
+def get_restore_dir(config):
+    return config.get('Dirs', 'restore_dir')
 
 def get_tar_blocking_factor(config):
     bs = config.getint('Tape', 'block_size_bytes')

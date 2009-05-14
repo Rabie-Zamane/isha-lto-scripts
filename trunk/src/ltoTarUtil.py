@@ -97,17 +97,17 @@ def session_device_check(config, session_id, device_code):
     media_exists_for_session_device_qry = 'exists(/session[@id="'+session_id+'"]//device[@code="'+device_code+'"]/*)'
     
     xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', session_exists_qry)
-    if not ltoUtil.get_parsed_xquery_value(xquery_result) == 'true':
+    if not ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
         print 'session id: '+session_id+' does not yet exist.'
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
     xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/reference', device_exists_qry)
-    if not ltoUtil.get_parsed_xquery_value(xquery_result) == 'true':
+    if not ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
         print 'device code: '+device_code+' does not exist.'
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
     xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', media_exists_for_session_device_qry)   
-    if ltoUtil.get_parsed_xquery_value(xquery_result) == 'true':
+    if ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
         print 'At least one media item has already been associated with session: '+session_id+' and device: '+device_code
         print
         print 'To see the associated media items for this session open the following link in your browser:'
@@ -209,7 +209,11 @@ def media_in_category(file, category, config):
 
 def db_media_id_exists(domain, id, config):
     media_id_exists_for_domain_qry = 'exists(/session//mediaMetadata//'+domain+'[@id="'+id+'"])'
-    return ltoUtil.exec_url_xquery_boolean(config, 'data', media_id_exists_for_domain_qry)
+    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', media_id_exists_for_domain_qry)
+    if ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
+        return True
+    else:
+        return False
 
 def generate_new_id(session_id, domain, config, previous_id):
     if not previous_id:
@@ -387,7 +391,7 @@ def generate_par2_tar(config, new_filepath):
 def generate_low_res(domain, filepath, dir):
     if (domain == 'video'):
         video_type = get_video_type(filepath)
-        if video_type == ('DV_PAL' or 'DV_NTSC' or 'MPEG2_H-14'):
+        if video_type == 'DV_PAL' or video_type == 'DV_NTSC' or video_type == 'MPEG2_H-14':
             preview_size = '384x288'
         elif video_type == 'MPEG2_HL':
             preview_size = '512x288'
@@ -507,7 +511,7 @@ def media_process_loop(domain, category, config, session_id, path, db_media_xml_
                 
                 generate_par2_tar(config, new_filepath)
                 proxy_media_dir = ltoUtil.get_proxy_media_dir(config)
-                #ltoUtil.generate_low_res(domain, new_filepath, proxy_media_dir)
+                generate_low_res(domain, new_filepath, proxy_media_dir)
                 append_tar_media_xml_element(tar_xml_doc, new_filepath, domain, media_id)
                 previous_id = media_id
                     
