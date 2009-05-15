@@ -21,6 +21,12 @@ def path_check(path):
         print get_script_name()+' script terminated.'
         sys.exit(2)
         
+def file_check(path):
+    if not os.path.exists(path):
+        print 'File '+path+' does not exist.' 
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+        
 def exec_url_xquery(config, collection, query):
     try:
         conn = httplib.HTTPConnection(get_host_port(config))
@@ -44,6 +50,22 @@ def get_parsed_xquery_value(result):
 def valid_chars(string):
     return re.match(r'^[a-zA-Z0-9-_]+$', string)
     
+def load_config(config):
+    config_filename = 'lto.cfg'
+    lto_home = os.environ.get('LTO_HOME')
+    if lto_home:
+        conf_path = os.path.join(lto_home, config_filename)
+        if os.path.exists(conf_path):
+            config.read(conf_path)
+        else:
+            print 'Could not find configuration file "'+config_filename+'" in '+lto_home
+            print get_script_name()+' script terminated.'
+            sys.exit(2)
+    else:
+        print 'Environment variable LTO_HOME not set.'
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+    
 def config_checks(config):
     tar_archive_dir = config.get('Dirs', 'tar_archive_dir')
     proxy_media_dir = config.get('Dirs', 'proxy_media_dir')
@@ -61,30 +83,37 @@ def config_checks(config):
     memory = config.getint('Par2', 'memory')
     
     if not os.path.exists(tar_archive_dir):
-        print 'Config Error: tar_archive_dir is not a valid path. create-archive script terminated.'
+        print 'Config Error: tar_archive_dir is not a valid path.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     if not os.path.exists(proxy_media_dir):
-        print 'Config Error: proxy_media_dir is not a valid path. create-archive script terminated.'
+        print 'Config Error: proxy_media_dir is not a valid path.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     if not (host == 'localhost' or re.match(r'^([0-9]{1,3}\.){3}[0-9]{1,3}$', host)):
-        print 'Config Error: wrong format for host. create-archive script terminated.'
+        print 'Config Error: wrong format for host.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     if not (int(port) >= 0 and int(port) <= 65535):
-        print 'Config Error: wrong format for port. create-archive script terminated.'
+        print 'Config Error: wrong format for port.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)
     if not (block_size_bytes.isdigit()):
-        print 'Config Error: block_size_bytes must be an integer. create-archive script terminated.'
+        print 'Config Error: block_size_bytes must be an integer.'
+        print get_script_name()+' script terminated.'
         sys.exit(2) 
     if not (int(block_size_bytes)%1024 == 0):
-        print 'Config Error: block size must be a multiple of 1024. create-archive script terminated.'
+        print 'Config Error: block size must be a multiple of 1024.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)   
     if not (max_gb.isdigit()):
-        print 'Config Error: max_gb must be an integer. create-archive script terminated.'
+        print 'Config Error: max_gb must be an integer.'
+        print get_script_name()+' script terminated.'
         sys.exit(2)   
     if not (min_gb.isdigit()):
-        print 'Config Error: min_gb must be an integer. create-archive script terminated.'
-        sys.exit(2) 
-    
+        print 'Config Error: min_gb must be an integer.'
+        print get_script_name()+' script terminated.'
+        sys.exit(2)  
 
 def get_host_port(config):
     host = config.get('Connection', 'host')
@@ -217,6 +246,13 @@ def write_xml(xmldoc, filepath):
     str = string.replace(str, '_id="', 'id="')
     f.write(str)
     f.close()
+
+def get_freespace(p):
+    s = os.statvfs(p)
+    return s.f_bsize * s.f_bavail
+
+def format_bytes_to_gbs(bytes):
+    return '%.1fGB' % (float(bytes)/(1024*1024*1024))
 
 def get_dir_total_size(dir):
     total_size = 0

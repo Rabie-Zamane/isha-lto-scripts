@@ -13,17 +13,17 @@ import ltoVerifyUtil
 def main():
 
     parser = optparse.OptionParser(version="%prog 1.0")
-    parser.add_option("-i", "--tape-id", dest="tape_id", type="string", help="Specify tape id")
     (options, args) = parser.parse_args()
     
     ltoWriteUtil.check_write_args(args)
     tape_id = args[0]
     
     config = ConfigParser.ConfigParser()
-    config.read('/home/kevala/workspace/ishaLto/src/lto.cfg')
-    
+    ltoUtil.load_config(config)
     ltoUtil.config_checks(config)
     ltoUtil.path_check(ltoUtil.get_tape_written_dir(config)+'/'+tape_id)
+    ltoUtil.file_check(ltoUtil.get_tape_written_dir(config)+'/'+tape_id+'/'+tape_id+'.xml')
+    ltoVerifyUtil.diskspace_check(config, tape_id)
     ltoUtil.delete_dir_content(ltoUtil.get_tape_verify_dir(config))
     
     ltoWriteUtil.setup_tape_drive(config)

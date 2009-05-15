@@ -23,7 +23,7 @@ def main():
     items = args
 
     config = ConfigParser.ConfigParser()
-    config.read('lto.cfg')
+    ltoUtil.load_config(config)
     ltoUtil.config_checks(config)
     ltoUtil.path_check(ltoUtil.get_restore_dir(config))
 
@@ -31,10 +31,11 @@ def main():
         items = ltoRestoreUtil.parse_files(args)
         
     if options.use_session_ids:
-        items = ltoRestoreUtil.get_media_ids(config, args[0], domain)
+        items = ltoRestoreUtil.get_media_ids(config, args, domain)
     
     ltoRestoreUtil.check_media_ids_exist(config, items, domain)
     item_vectors = ltoRestoreUtil.get_item_vectors(config, items, domain)
+    ltoRestoreUtil.check_total_size(config, item_vectors)
     ltoRestoreUtil.restore_media_items(config, domain, item_vectors)
     
     

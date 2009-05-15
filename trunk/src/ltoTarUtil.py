@@ -12,16 +12,8 @@ import base64
 import ltoUtil
 
 def check_tar_args(args):
-    if args[0] == None or args[0] =="":
-        print 'Session id not specified.' 
-        print ltoUtil.get_script_name()+' script terminated.'
-        sys.exit(2)
-    if args[1] == None or args[1] =="":
-        print 'Device code not specified.'
-        print ltoUtil.get_script_name()+' script terminated.'
-        sys.exit(2)
-    if args[2] == None or args[2] =="":
-        print 'Media path not specified.'
+    if not len(args) == 3:
+        print 'Exactly three arguments must be provided. (session id, device code, media path).' 
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
         
@@ -54,6 +46,7 @@ def get_media_category(config, path):
 def media_file_types_check(config, category, path):
     category_filetypes = config.get('CategoryFileTypes', category).split(',')
     media_file_count = 0
+    total_file_size = 0
     non_category_files = []
     for dirpath, dirnames, filenames in os.walk(path):
         for file in filenames:
@@ -62,7 +55,9 @@ def media_file_types_check(config, category, path):
                     non_category_files.append(os.path.join(dirpath, file))
                 else: 
                     media_file_count += 1
-                                              
+                    total_file_size += ltoUtil.get_filesize(os.path.join(dirpath, file))
+                    
+    free_bytes = ltoUtil.get_freespace(ltoUtil.get_tar_build_dir(config))                          
     if (len(non_category_files) > 0):
         print 'WARNING: The following unexpected media files were found in the folder: '+path+'\n'
         for f in non_category_files:
@@ -81,6 +76,27 @@ def media_file_types_check(config, category, path):
         print 'No recognised media files were found in: '+path
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
+    elif total_file_size > free_bytes - (1024*1024):
+        print 'The total file size of the media files to be archived ('+ltoUtil.format_bytes_to_gbs(total_file_size)+') exceeds the free space available in '+ltoUtil.get_tar_build_dir(config)+' ('+ltoUtil.format_bytes_to_gbs(free_bytes)+').'
+        print ltoUtil.get_script_name()+' script terminated.'
+        sys.exit(2) 
+
+def db_session_id_exists(config, session_id):
+    session_exists_qry = 'exists(/session[@id="'+session_id+'"])'
+    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', session_exists_qry)
+    if ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
+        return True
+    else:
+        return False
+        
+    
+def db_device_code_exists(config, device_code):
+    device_exists_qry = 'exists(//deviceCode[@id="'+device_code+'"])'
+    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/reference', device_exists_qry)
+    if ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
+        return True
+    else:
+        return False
 
 def session_device_check(config, session_id, device_code):
     if not ltoUtil.valid_chars(session_id):
@@ -91,18 +107,12 @@ def session_device_check(config, session_id, device_code):
         print 'Invalid characters used in device_code.'
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-        
-    session_exists_qry = 'exists(/session[@id="'+session_id+'"])'
-    device_exists_qry = 'exists(//deviceCode[@id="'+device_code+'"])'
     media_exists_for_session_device_qry = 'exists(/session[@id="'+session_id+'"]//device[@code="'+device_code+'"]/*)'
-    
-    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/data', session_exists_qry)
-    if not ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
+    if not db_session_id_exists(config, session_id):
         print 'session id: '+session_id+' does not yet exist.'
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
-    xquery_result = ltoUtil.exec_url_xquery(config, ltoUtil.get_transcript_url(config)+'/reference', device_exists_qry)
-    if not ltoUtil.get_parsed_xquery_value(xquery_result) == ['true']:
+    if not db_device_code_exists(config, device_code):
         print 'device code: '+device_code+' does not exist.'
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
@@ -222,12 +232,12 @@ def generate_new_id(session_id, domain, config, previous_id):
         return previous_id[:previous_id.find('-')]+'-'+str(int(previous_id[previous_id.find('-')+1:])+1)
 
 def get_id_from_filename(filepath, domain, config):
-    fn = get_filename(filepath)
+    fn = ltoUtil.get_filename(filepath)
     id = string.lower(fn[:fn.rfind('.')])
-    if re.match('^[a-z]{1,3}-?[0-9]{1,7}$', id):
-        alpha = re.match('^[a-z]+', id)
+    if re.match('^[a-z]{1,3}-?[0-9]+$', id):
+        alpha = re.search('^[a-z]+', id)
         alpha_index = alpha.end()
-        num = re.match('[0-9]+$', id)
+        num = re.search('[0-9]+$', id)
         num_index = num.start()
         alpha_part = id[:alpha_index]
         #This is to remove any leading zeros (which will prevent ids from matching)
@@ -243,7 +253,7 @@ def get_id_from_filename(filepath, domain, config):
             print ltoUtil.get_script_name()+' script terminated.'
             sys.exit(2)
     else:
-        print 'Captured media filename: '+fn+' in wrong format.'
+        print 'Wrong format for media filename: '+fn
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
     return id   
@@ -270,7 +280,12 @@ def generate_db_media_xml_element(media_path, domain, category, media_id, config
         if category == 'sony-xdcam':
             mfile = open(media_path, 'r')
             num_bytes_mp4_xml_data = 1143
-            mfile.seek(-num_bytes_mp4_xml_data, 2)
+            try:
+                mfile.seek(-num_bytes_mp4_xml_data, 2)
+            except IOError, io:
+                print 'Unable to read data from '+category+' file '+media_path
+                print ltoUtil.get_script_name()+' script terminated.'
+                sys.exit(2)    
             mp4xml = mfile.read()
             timestamp = get_sonyxdcam_timestamp(mp4xml)
             original_id = get_original_id(media_path)
@@ -278,12 +293,18 @@ def generate_db_media_xml_element(media_path, domain, category, media_id, config
             auto_split = get_autosplit(media_path)
             attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration,'autoSplit':auto_split}    
         elif category == 'video':
+            original_id = get_original_id(media_path)
             duration = get_media_duration(media_path)
             attributes = {'originalId':original_id, 'duration':duration}
         elif category == 'fostex-audio':
             mfile = open(media_path, 'r')
             num_bytes_bwf_xml_data = 10945
-            mfile.seek(num_bytes_bwf_xml_data, 0)
+            try:
+                mfile.seek(num_bytes_bwf_xml_data, 0)
+            except IOError, io:
+                print 'Unable to read data from '+category+' file '+media_path
+                print ltoUtil.get_script_name()+' script terminated.'
+                sys.exit(2)   
             bwfxml = mfile.read(615)
             timestamp = get_fostexaudio_timestamp(bwfxml)
             original_id = get_original_id(media_path)
@@ -292,7 +313,12 @@ def generate_db_media_xml_element(media_path, domain, category, media_id, config
         elif category == 'marantz-audio':
             mfile = open(media_path, 'r')
             num_bytes_wf_str_data = 364
-            mfile.seek(num_bytes_wf_str_data, 0)
+            try:
+                mfile.seek(num_bytes_wf_str_data, 0)
+            except IOError, io:
+                print 'Unable to read data from '+category+' file '+media_path
+                print ltoUtil.get_script_name()+' script terminated.'
+                sys.exit(2)   
             str = mfile.read(18)
             timestamp = get_marantzaudio_timestamp(str)
             original_id = get_original_id(media_path)
@@ -395,8 +421,8 @@ def generate_low_res(domain, filepath, dir):
             preview_size = '384x288'
         elif video_type == 'MPEG2_HL':
             preview_size = '512x288'
-        preview_suff = 'h261_'+preview_size
-        preview_file = filepath[0:-3]+preview_suff+'.mp4'
+        preview_suff = 'h261-'+preview_size
+        preview_file = filepath[0:-4]+'_'+preview_suff+'.mp4'
         fn = ltoUtil.get_filename(preview_file)
         p = subprocess.Popen('ffmpeg -y -i '+filepath+' -pass 1 -vcodec libx264 -vpre fastfirstpass -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+filepath+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre hq -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 '+dir+'/'+fn, shell=True)
         sts = os.waitpid(p.pid, 0)
@@ -404,8 +430,11 @@ def generate_low_res(domain, filepath, dir):
         os.remove('ffmpeg2pass-0.log')
         os.remove('x264_2pass.log')
     elif (domain =='audio'):
-        print 'lo_res ffmpeg call not yet defined. script terminated.'
-        sys.exit(2)
+        preview_suff = '64k'
+        preview_file = filepath[0:-4]+'_'+preview_suff+'.mp3'
+        fn = ltoUtil.get_filename(preview_file)
+        p = subprocess.Popen('ffmpeg -y -i '+filepath+' -acodec libmp3lame -ab 64k -ac 1 -f mp3 '+dir+'/'+fn, shell=True)
+        sts = os.waitpid(p.pid, 0)
     
 def get_video_type(filepath):
     p = subprocess.Popen('ffmpeg -i '+filepath, shell=True, stderr=subprocess.PIPE)

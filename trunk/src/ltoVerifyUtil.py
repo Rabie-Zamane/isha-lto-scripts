@@ -6,6 +6,24 @@ import xml.dom.minidom
 import shutil
 import ltoUtil
 
+def diskspace_check(config, tape_id):
+    verify_dir = ltoUtil.get_tape_verify_dir(config)
+    free_bytes = ltoUtil.get_freespace(verify_dir)
+    index_path = ltoUtil.get_tape_written_dir(config)+'/'+tape_id+'/'+tape_id+'.xml'
+    tape_xml_doc = xml.dom.minidom.parse(index_path)
+    tar_elems = tape_xml_doc.getElementsByTagName('tar')
+    max_tar_size = 0
+    for t in tar_elems:
+        tar_size = int(t.getAttribute('size'))
+        if tar_size > max_tar_size:
+            max_tar_size = tar_size
+    if max_tar_size > free_bytes - (1024*1024):
+        free_gbs = ltoUtil.format_bytes_to_gbs(free_bytes)
+        needed_gbs = ltoUtil.format_bytes_to_gbs(max_tar_size)
+        print 'There is only '+free_gbs+' available space on '+verify_dir+'. At least '+needed_gbs+' is needed to perform the tape verification.'
+        print ltoUtil.get_script_name()+' script terminated.'
+        sys.exit(2)
+
 def verify_tape(config, tape_id):
     print '\nVerifying index'
     bs = int(config.get('Tape', 'block_size_bytes'))

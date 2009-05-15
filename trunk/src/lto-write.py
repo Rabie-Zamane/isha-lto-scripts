@@ -18,8 +18,7 @@ def main():
     tape_id = args[0]
     
     config = ConfigParser.ConfigParser()
-    config.read('lto.cfg')
-    
+    ltoUtil.load_config(config)
     ltoUtil.config_checks(config)
     ltoUtil.path_check(ltoUtil.get_tape_pending_dir(config)+'/'+tape_id)
     ltoWriteUtil.verify_virtual_tape(config, tape_id)

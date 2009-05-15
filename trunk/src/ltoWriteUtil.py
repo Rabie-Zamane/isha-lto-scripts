@@ -9,7 +9,7 @@ import ltoUtil
 
 
 def check_write_args(args):
-    if args[0] == None or args[0] =="":
+    if len(args) == 0:
         print 'Tape id not specified.' 
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)

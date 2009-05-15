@@ -7,8 +7,7 @@ import ltoBuildUtil
 def main():
     
     config = ConfigParser.ConfigParser()
-    config.read('lto.cfg')
-    
+    ltoUtil.load_config(config)
     ltoUtil.config_checks(config)
     ltoUtil.path_check(ltoUtil.get_tape_build_dir(config))
     ltoUtil.path_check(ltoUtil.get_tape_pending_dir(config))

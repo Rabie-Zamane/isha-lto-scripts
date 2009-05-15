@@ -14,10 +14,9 @@ def main():
     session_id = args[0]
     device_code = args[1]
     path = args[2]
-    
+
     config = ConfigParser.ConfigParser()
-    config.read('/home/kevala/workspace/ishaLto/src/lto.cfg')
-    
+    ltoUtil.load_config(config)
     ltoUtil.config_checks(config)
     category = ltoTarUtil.get_media_category(config, path)
     ltoUtil.path_check(path) 
