@@ -9,7 +9,7 @@ This document contains the instructions on how to install and configure the Cent
 
 We have chosen to use the Linux OS because it is generally considered to offer greater stability, security when compared to Microsoft Windows. We also wanted to use an open source model for our data backup architecture, to avoid storing our data in proprietary formats, and therefore avoid the risk of being unable to access it in the future due to software version incompatibilities or discontinuities. For this reason Linux was the natural choice. 
 
-The reason why we have chosen the CentOS distribution of Linux is primarily because we are using an HP Tape Drive (Storageworks Ultrium 920 External SCSI) together with an HP SCSI HBA Card (SC11Xe PCIe Ultra320), both of which are only supported, (and have drivers/firmware available) for the enterprise versions of either RHEL or SUSE. 
+The reason why we have chosen the CentOS distribution of Linux is primarily because we are using an HP Tape Drive (Storageworks Ultrium 920 External SCSI) together with an HP SCSI HBA Card [http://h20000.www2.hp.com/bizsupport/TechSupport/SoftwareIndex.jsp?lang=en&cc=us&prodNameId=3191202&prodTypeId=329290&prodSeriesId=3191201&swLang=8&taskId=135&swEnvOID=4006 (SC11Xe PCIe Ultra320)], both of which are only supported, (and have drivers/firmware available) for the enterprise versions of either RHEL or SUSE. 
 
 CentOS aims to be, as far as possible, a "binary clone" of RHEL (using the freely available source code under the GPL license), but with the advantage of being free. Using an "enterprise" distribution also means that we are less at risk from bugs introduced by having the "latest and greatest" updates, which might be the case with using an OS like Ubuntu for example.
 
