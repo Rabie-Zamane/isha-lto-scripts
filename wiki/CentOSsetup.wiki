@@ -13,6 +13,18 @@ The reason why we have chosen the CentOS distribution of Linux is primarily beca
 
 CentOS aims to be, as far as possible, a "binary clone" of RHEL (using the freely available source code under the GPL license), but with the advantage of being free. Using an "enterprise" distribution also means that we are less at risk from bugs introduced by having the "latest and greatest" updates, which might be the case with using an OS like Ubuntu for example.
 
+== General Hints ==
+
+This section contains some general information about how to perform some of the commonly used tasks in CentOS
+
+=== Package Management with YUM ===
+
+su -c 'yum install tsclient' (Installs tsclient)
+su -c 'yum update tsclient' (Updates tsclient to the latest version)
+su -c 'yum remove tsclient' (Removes tsclient from the system)
+su -c 'yum list tsclient' (Searches for package named tsclient)
+su -c 'yum list tsc\*' (Search using wildcard)
+
 
 
 
