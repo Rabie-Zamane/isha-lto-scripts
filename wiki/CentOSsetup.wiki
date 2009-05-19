@@ -27,9 +27,9 @@ su -c 'yum list tsc\*' (Search using wildcard)
 
 === Required Packages ===
 
-* ImageMagick
-* subversion
-* ffmpeg
+  * ImageMagick
+  * subversion
+  * ffmpeg
 
 
 Add your content here.  Format your content with:
