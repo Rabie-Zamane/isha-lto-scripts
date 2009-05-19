@@ -25,7 +25,11 @@ su -c 'yum remove tsclient' (Removes tsclient from the system)
 su -c 'yum list tsclient' (Searches for package named tsclient)
 su -c 'yum list tsc\*' (Search using wildcard)
 
+=== Required Packages ===
 
+* ImageMagick
+* subversion
+* ffmpeg
 
 
 Add your content here.  Format your content with:
