@@ -210,7 +210,7 @@ def db_get_next_media_id(session_id, domain, config):
 def media_in_domain(file, domain, config):
     domain_types = config.get('DomainFileTypes', domain).split(',')
     for type in domain_types:
-        if string.lower(file).endswith('.'+string.lower(type)):
+        if string.lower(file).endswith('.'+string.lower(type)) and not file.startswith('.'):
             return True
     return False
 
@@ -360,7 +360,17 @@ def get_image_timestamp(media_path):
     day = ts[8:10]
     time = ts[11:20]
     dt = year+'-'+month+'-'+day+'T'+time
-    return dt  
+    return dt
+
+def get_orientation(media_path):
+    image = pyexiv2.Image(media_path)
+    image.readMetadata()
+    exif_keys = image.exifKeys()
+    if 'Exif.Image.Orientation' in exif_keys:
+        orientation = int(image['Exif.Image.Orientation'])
+    else:
+        orientation = 0
+    return orientation
 
 def get_sonyxdcam_timestamp(xml):
     start = xml.find('<CreationDate value="')+21
@@ -436,37 +446,51 @@ def generate_par2_tar(config, new_filepath):
         os.remove(os.path.join(path, p))
     
 def generate_low_res(domain, filepath, dir):
-    if (domain == 'video'):
-        video_type = get_video_type(filepath)
-        if video_type == 'DV_PAL' or video_type == 'DV_NTSC' or video_type == 'MPEG2_H-14':
-            preview_size = '384x288'
-        elif video_type == 'MPEG2_HL':
-            preview_size = '512x288'
-        preview_suff = 'h261-'+preview_size
-        preview_file = filepath[0:-4]+'_'+preview_suff+'.mp4'
-        fn = ltoUtil.get_filename(preview_file)
-        p = subprocess.Popen('ffmpeg -y -i '+filepath+' -pass 1 -vcodec libx264 -vpre fastfirstpass -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+filepath+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre hq -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 '+dir+'/'+fn, shell=True)
-        sts = os.waitpid(p.pid, 0)
-        os.remove('ffmpeg2pass-0.log')
-        os.remove('x264_2pass.log')
-    elif (domain =='audio'):
-        preview_suff = '64k'
-        preview_file = filepath[0:-4]+'_'+preview_suff+'.mp3'
-        fn = ltoUtil.get_filename(preview_file)
-        p = subprocess.Popen('ffmpeg -y -i '+filepath+' -acodec libmp3lame -ab 64k -ac 1 -f mp3 '+dir+'/'+fn, shell=True)
-        sts = os.waitpid(p.pid, 0)
-    elif (domain =='image'):
-        preview_suff = '1024x680'
-        preview_file = filepath[0:-4]+'_'+preview_suff+'.jpg'
-        fn = ltoUtil.get_filename(preview_file)
-        file_type = ltoUtil.get_file_extn(filepath)
-        if string.lower(file_type) == 'jpg':
-            p = subprocess.Popen('convert -resize 1024x680 -quality 95 '+filepath+' '+dir+'/'+fn, shell=True)
+    if os.path.exists(dir+'/'+domain):
+        if (domain == 'video'):
+            video_type = get_video_type(filepath)
+            if video_type == 'DV_PAL' or video_type == 'DV_NTSC' or video_type == 'MPEG2_H-14':
+                preview_size = '384x288'
+            elif video_type == 'MPEG2_HL':
+                preview_size = '512x288'
+            preview_suff = 'h264-'+preview_size
+            preview_file = filepath[0:-4]+'_'+preview_suff+'.mp4'
+            fn = ltoUtil.get_filename(preview_file)
+            p = subprocess.Popen('ffmpeg -y -i '+filepath+' -pass 1 -vcodec libx264 -vpre fastfirstpass -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+filepath+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre hq -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 '+dir+'/'+domain+'/'+fn, shell=True)
             sts = os.waitpid(p.pid, 0)
-        #Much faster to extract the embedded image from the RAW file instead of resizing
-        elif string.lower(file_type) == 'nef' or string.lower(file_type) == 'cr2':
-            p = subprocess.Popen('ufraw-batch --embedded-image --output=- '+filepath+' | convert -resize 1024x680 -quality 95 - '+dir+'/'+fn, shell=True)
+            os.remove('ffmpeg2pass-0.log')
+            os.remove('x264_2pass.log')
+        elif (domain =='audio'):
+            preview_suff = '64k'
+            preview_file = filepath[0:-4]+'_'+preview_suff+'.mp3'
+            fn = ltoUtil.get_filename(preview_file)
+            p = subprocess.Popen('ffmpeg -y -i '+filepath+' -acodec libmp3lame -ab 64k -ac 1 -f mp3 '+dir+'/'+domain+'/'+fn, shell=True)
             sts = os.waitpid(p.pid, 0)
+        elif (domain =='image'):
+            orientation = get_orientation(filepath)
+            file_type = ltoUtil.get_file_extn(filepath)
+            if orientation in [0,1,2,3,4] and file_type == 'jpg':
+                geometry = '1024x680'
+            elif orientation in [0,1,2,3,4] and file_type in ['nef', 'cr2']:
+                geometry = '1024x680'
+            elif orientation in [5,6,7,8] and file_type == 'jpg':
+                geometry = '1024x680'
+            #We need to do this since we are extracting the embedded image from the raw files - which has no EXIF data
+            elif orientation in [5,6,7,8] and file_type in ['nef', 'cr2']:
+                geometry = '680x1024'
+            preview_file = filepath[0:-4]+'_'+geometry+'.jpg'
+            fn = ltoUtil.get_filename(preview_file)
+            if string.lower(file_type) == 'jpg':
+                p = subprocess.Popen('convert -thumbnail '+geometry+' -auto-orient -unsharp 0x.5 -quality 92 '+filepath+' '+dir+'/'+domain+'/'+fn, shell=True)
+                sts = os.waitpid(p.pid, 0)
+            #Much faster to extract the embedded image from the RAW file instead of resizing
+            elif string.lower(file_type) == 'nef' or string.lower(file_type) == 'cr2':
+                p = subprocess.Popen('ufraw-batch --embedded-image --output=- '+filepath+' | convert -thumbnail '+geometry+' -auto-orient -unsharp 0x.5 -quality 92 - '+dir+'/'+domain+'/'+fn, shell=True)
+                sts = os.waitpid(p.pid, 0)
+    else:
+        print 'preview directory '+preview_dir+'/'+domain+' does not exist.'
+        print ltoUtil.get_script_name()+' script terminated.'
+        sys.exit(2)
     
 def get_video_type(filepath):
     p = subprocess.Popen('ffmpeg -i '+filepath, shell=True, stderr=subprocess.PIPE)
