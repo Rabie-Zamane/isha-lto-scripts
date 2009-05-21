@@ -51,9 +51,9 @@ def valid_chars(string):
     return re.match(r'^[a-zA-Z0-9-_]+$', string)
     
 def load_config(config):
-    config_filename = 'lto.cfg'
+    config_filename = 'lto.conf'
     lto_home = os.environ.get('LTO_HOME')
-    lto_home = '/home/kevala/workspace/ishaLto/src'
+    lto_home = '/home/kevala/workspace/ishaLto'
     if lto_home:
         conf_path = os.path.join(lto_home, config_filename)
         if os.path.exists(conf_path):
