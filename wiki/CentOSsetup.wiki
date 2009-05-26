@@ -2,7 +2,7 @@
 
 = Introduction =
 
-This document contains the instructions on how to install and configure the CentOS Operating System, installing the necessary software to be able to perform the LTO backups, and to run the TranscriptStudio application.
+This document contains the instructions on how to install and configure the CentOS Operating System, installing the necessary software and hardware, to be able to perform the LTO backups, and to run the TranscriptStudio application.
 
 
 == Why CentOS ==
@@ -12,6 +12,23 @@ We have chosen to use the Linux OS because it is generally considered to offer g
 The reason why we have chosen the CentOS distribution of Linux is primarily because we are using an HP Tape Drive (Storageworks Ultrium 920 External SCSI) together with an HP SCSI HBA Card [http://h20000.www2.hp.com/bizsupport/TechSupport/SoftwareIndex.jsp?lang=en&cc=us&prodNameId=3191202&prodTypeId=329290&prodSeriesId=3191201&swLang=8&taskId=135&swEnvOID=4006 (SC11Xe PCIe Ultra320)], both of which are only supported, (and have drivers/firmware available) for the enterprise versions of either RHEL or SUSE. 
 
 CentOS aims to be, as far as possible, a "binary clone" of RHEL (using the freely available source code under the GPL license), but with the advantage of being free. Using an "enterprise" distribution also means that we are less at risk from bugs introduced by having the "latest and greatest" updates, which might be the case with using an OS like Ubuntu for example.
+
+== Hardware Installation ==
+
+We are using the following hardware:
+  * IBM System x3400 (7973) Server
+  * HP Storageworks Ultrium 920 LTO-3 External Scsi Tape Drive
+  * HP SC11Xe Ultra 320 PCIe HBA card (OEM version of LSI card)
+  * 2 Western Digital Velociraptor 10000rpm 300GB Sata Hard Disks
+
+=== Installing the HP SC11Xe HBA card ===
+
+The latest driver for this card is available [http://h20000.www2.hp.com/bizsupport/TechSupport/SoftwareDescription.jsp?lang=en&cc=uk&prodTypeId=329290&prodSeriesId=3191201&swItem=MTX-0cfb66c3937346129f6ce9ed13&prodNameId=3191202&swEnvOID=4006&swLang=8&taskId=135&mode=4&idx=2 here]. Note that we are using the driver for the Red Hat Enterprise Linux 5 Server (x86) operating system. At the time of writing the driver version was 4.00.13.04-6 (19 Feb 2009).
+
+After downloading the rpm file from the HP site, a couple of things need to be done to make the installation work.
+
+  # 
+
 
 == General Hints ==
 
