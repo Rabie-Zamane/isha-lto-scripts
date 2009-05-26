@@ -54,6 +54,10 @@ Install it by typing the following command as root
 
 Note: this will create the admin user with a blank password - so you must set this as soon as possible afterwards to secure your database.
 
+=== Installing the Flash Player plugin ===
+
+You can get the latest Flash Player plugin from [http://get.adobe.com/flashplayer/ here], and select the YUM download option.
+
 === Installing ts4isha ===
 
 After installing, point your web browser at [http://localhost:8080/exist/ts4isha/TranscriptStudio.swf] to access the Transcript Studio application.
