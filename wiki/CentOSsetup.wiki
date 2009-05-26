@@ -27,7 +27,14 @@ The latest driver for this card is available [http://h20000.www2.hp.com/bizsuppo
 
 After downloading the rpm file from the HP site, a couple of things need to be done to make the installation work.
 
-  # 
+  # Change the value stored in the file /etc/redhat-release from "CentOS release 5.3 (Final)" to "Red Hat Enterprise Linux Server release 5 (Tikanga)". If you don't do this, then the the installation will fail with a message saying that you don't have the correct distribution.
+
+  # Prevent mkinitrd from requiring the dm-mem-cache module. This can be accomplished by executing the following commands as root:
+
+  # echo "DMRAID=no" > /etc/sysconfig/mkinitrd/noraid
+  # chmod 755 /etc/sysconfig/mkinitrd/noraid
+
+More information on what this means can be found [http://kbase.redhat.com/faq/docs/DOC-16528 here]
 
 
 == General Hints ==
