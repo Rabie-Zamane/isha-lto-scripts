@@ -42,7 +42,7 @@ More information on what this means can be found [http://kbase.redhat.com/faq/do
 
 Get the latest version of the Java jdk from [http://java.sun.com/javase/downloads/index.jsp Sun's website].
 
-Some clear instructions on how to perform the installation can be found [http://www.cyberciti.biz/faq/linux-unix-set-java_home-path-variable/ here]
+Clear instructions on how to perform the installation can be found [http://www.cyberciti.biz/faq/linux-unix-set-java_home-path-variable/ here]. (See the comments by Mustafa Buljubasic)
 
 === Installing eXist ===
 
