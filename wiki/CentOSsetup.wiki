@@ -36,6 +36,19 @@ After downloading the rpm file from the HP site, a couple of things need to be d
 
 More information on what this means can be found [http://kbase.redhat.com/faq/docs/DOC-16528 here]
 
+== Software Installation ==
+
+=== Installing Java ===
+
+Get the latest version of the Java jdk from [http://java.sun.com/javase/downloads/index.jsp Sun's website].
+
+=== Installing eXist ===
+
+Get the latest stable version of the eXist xml database from [http://exist.sourceforge.net/download.html here].
+
+Install it by typing the following command as root
+
+  # java -Djava.awt.headless=true -p /usr/local -jar eXist-binary.jar
 
 == General Hints ==
 
