@@ -44,6 +44,18 @@ After downloading the rpm file from the HP site, a couple of things need to be d
 
 More information on what this means can be found [http://kbase.redhat.com/faq/docs/DOC-16528 here]
 
+=== Enabling Firewire ===
+
+In order to facilitate receiving and offloading large amounts of data, we have decided to use a firewire connection to the server.
+
+By default RedHat/CentOS does not have firewire support enabled in the kernel. This means that either one must recompile the kernel enabling the appropriate kernel modules - or more easily - upgrade to the CentOSPlus kernel, which has firewire support enabled. (We have chosen the latter - for the sake of simplicity).
+
+...Stuff about editing YUM configuration files (exclude and priority options)...
+
+NOTE: This may cause a problem - since the HP HBA card requires us to have one of a specified list of kernel versions  - of which the CentOSPlus kernel is not one of!!
+
+If this cannot be resolved then we may be forced to boot into a different kernels for writing to tape and for transferring files UUGH!!). Next time we must by an IBM drive!
+
 == Software Installation ==
 
 === Installing Java ===
