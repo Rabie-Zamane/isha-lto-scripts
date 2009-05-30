@@ -44,6 +44,14 @@ After downloading the rpm file from the HP site, a couple of things need to be d
 
 More information on what this means can be found [http://kbase.redhat.com/faq/docs/DOC-16528 here]
 
+=== Rescanning the SCSI bus ===
+
+As root execute the command:
+
+  # echo "- - -" > /sys/class/scsi_host/host?/scan
+
+(replacing "?" with the number of the host - e.g. 0, 1, 2, 3)
+
 === Enabling Firewire ===
 
 In order to facilitate receiving and offloading large amounts of data, we have decided to use a firewire connection to the server.
