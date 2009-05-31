@@ -16,9 +16,7 @@ CentOS aims to be, as far as possible, a "binary clone" of RHEL (using the freel
 
 == Installing CentOS ==
 
-We need to install CentOS version 5.2. (Actually, version 5.3 is available, but due to the limitation of the HP HBA driver, which does not support the latest kernel, we are required to stick with this version). Specifically, it uses kernel version 2.6.18-92.el5PAE - which is supported by the HBA driver. (Note that after installation we should not upgrade the kernel without checking to see if the HBA driver will be supported)
-
-The 2.6.18-92.el5PAE kernel (and the rest of the distribution can be downloaded from [http://mirrors.arsc.edu/centos/5.2/os/i386/CentOS/ here]
+We need to install the latest version of CentOS (with the CentOS Plus repository enabled, and with the CentOSPlus kernel). The CentOS Plus repository contains extra packages which are not in the official RedHat distribution - so it means that is "unsupported". However, we require the firewire IE1394 support, which is only enabled in the CentOS Plus kernel)
 
 == Hardware Installation ==
 
@@ -31,9 +29,11 @@ We are using the following hardware:
 
 === Installing the HP SC11Xe HBA card ===
 
-The latest driver for this card is available [http://h20000.www2.hp.com/bizsupport/TechSupport/SoftwareDescription.jsp?lang=en&cc=uk&prodTypeId=329290&prodSeriesId=3191201&swItem=MTX-0cfb66c3937346129f6ce9ed13&prodNameId=3191202&swEnvOID=4006&swLang=8&taskId=135&mode=4&idx=2 here]. Note that we are using the driver for the Red Hat Enterprise Linux 5 Server (x86) operating system. At the time of writing the driver version was 4.00.13.04-6 (19 Feb 2009).
+We used the LSI Logic driver, available from [http://www.lsi.com/storage_home/products_home/host_bus_adapters/scsi_hbas/lsi20320ie/ here]. We installed the dkms rpm and then the mptlinux-dkms rpm.
 
-After downloading the rpm file from the HP site, a couple of things need to be done to make the installation work.
+(Note: The official HP driver for this card is available [http://h20000.www2.hp.com/bizsupport/TechSupport/SoftwareDescription.jsp?lang=en&cc=uk&prodTypeId=329290&prodSeriesId=3191201&swItem=MTX-0cfb66c3937346129f6ce9ed13&prodNameId=3191202&swEnvOID=4006&swLang=8&taskId=135&mode=4&idx=2 here], but we found that it gave sub-optimal performance compared to the LSI driver, as well as restricting us to a particular kernel version. With the HP driver the tape drive was able to write around 95% capacity of the tape - 375GB out of 391GB, whereas the LSI driver was able to write close to 100% capacity - both at around 55MBps. 
+
+If for any strange reason we need to use the HP driver, a couple of things (hacks) need to be done to make the installation work properly.
 
   # Change the value stored in the file /etc/redhat-release from "CentOS release 5.3 (Final)" to "Red Hat Enterprise Linux Server release 5 (Tikanga)". If you don't do this, then the the installation will fail with a message saying that you don't have the correct distribution.
 
@@ -46,9 +46,9 @@ More information on what this means can be found [http://kbase.redhat.com/faq/do
 
 === Rescanning the SCSI bus ===
 
-As root execute the command:
+If the server is powered on before the tape drive, then the tape drive will not be detected automatically after it is switched on. To get the server to detect the tape drive without having to restart the server you can rescan the scsi bus, by entering the following command as root:
 
-  # echo "- - -" > /sys/class/scsi_host/host?/scan
+  * echo "- - -" > /sys/class/scsi_host/host?/scan
 
 (replacing "?" with the number of the host - e.g. 0, 1, 2, 3)
 
@@ -60,17 +60,20 @@ By default RedHat/CentOS does not have firewire support enabled in the kernel. T
 
 ...Stuff about editing YUM configuration files (exclude and priority options)...
 
-NOTE: This may cause a problem - since the HP HBA card requires us to have one of a specified list of kernel versions  - of which the CentOSPlus kernel is not one of!!
-
-If this cannot be resolved then we may be forced to boot into a different kernels for writing to tape and for transferring files UUGH!!). Next time we must by an IBM drive!
+NOTE: If using the HP HBA Card driver this would cause a problem since the HP HBA card requires us to have one of a specified list of kernel versions  - of which the CentOSPlus kernel is not one of.
 
 == Software Installation ==
 
 === Installing Java ===
 
-Get the latest version of the Java jdk from [http://java.sun.com/javase/downloads/index.jsp Sun's website].
+Get the latest version of the Java jdk from [http://java.sun.com/javase/downloads/index.jsp Sun's website]. Move the binary executable to /opt and execute it as root.
 
 Clear instructions on how to perform the installation can be found [http://www.cyberciti.biz/faq/linux-unix-set-java_home-path-variable/ here]. (See the comments by Mustafa Buljubasic)
+
+Set the $JAVA_HOME and $PATH system environment variables by executing the following commands as root:
+
+  * echo export JAVA_HOME=/usr/local/java > /etc/profile.d/jdk.sh
+  * echo export PATH=$JAVA_HOME/bin:$PATH >> /etc/profile.d/jdk.sh
 
 === Installing eXist ===
 
@@ -78,9 +81,13 @@ Get the latest stable version of the eXist xml database from [http://exist.sourc
 
 Install it by typing the following command as root
 
-  # java -jar eXist-{version}.jar -p /usr/local/exist
+  * java -jar eXist-{version}.jar -p /usr/local/exist
 
 Note: this will create the admin user with a blank password - so you must set this as soon as possible afterwards to secure your database.
+
+Set the $EXIST_HOME system environment variable by executing the following command as root:
+
+  * echo export EXIST_HOME=/usr/local/exist > /etc/profile.d/exist.sh
 
 To configure eXist to start as a service...
 
