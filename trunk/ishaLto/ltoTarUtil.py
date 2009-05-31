@@ -10,6 +10,7 @@ import httplib
 import re
 import base64
 import pyexiv2
+import smtplib
 import ltoUtil
 
 def check_tar_args(args):
@@ -92,7 +93,6 @@ def db_session_id_exists(config, session_id):
         return True
     else:
         return False
-        
     
 def db_device_code_exists(config, device_code):
     device_exists_qry = 'exists(//deviceCode[@id="'+device_code+'"])'
@@ -652,4 +652,4 @@ def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc):
     else:
         ltoUtil.write_xml(db_media_xml_doc, xml_media_filepath)
         print '\nMedia xml saved to '+xml_media_filepath
-       
+        

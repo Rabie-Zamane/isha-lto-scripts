@@ -28,16 +28,19 @@ def file_check(path):
         sys.exit(2)
         
 def exec_url_xquery(config, collection, query):
+    conn = httplib.HTTPConnection(get_host_port(config))
+    params = urllib.urlencode({'_query': query})
     try:
-        conn = httplib.HTTPConnection(get_host_port(config))
-        params = urllib.urlencode({'_query': query})
         conn.request('GET', collection+'?'+params, None, {})
-        response = conn.getresponse()
-        return response.read()
-    except httplib.HTTPException, e:
-        print 'Unable to execute xquery'
+    except Exception, e:
+        print 'Unable to establish a connection to the database'
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
     else:
+        response = conn.getresponse()
+        data = response.read()
         conn.close()
+        return data
         
 def get_parsed_xquery_value(result):
     doc = xml.dom.minidom.parseString(result) 

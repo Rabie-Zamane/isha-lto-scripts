@@ -1,6 +1,10 @@
 import sys
 import os
 import subprocess
+import urllib
+import httplib
+import string
+import xml.dom.minidom
 import ltoUtil
 import ltoTarUtil
 import ltoWriteUtil
@@ -63,27 +67,35 @@ def lto_db_media_id_exists(domain, id, config):
 
 def get_item_vectors(config, items, domain):
     bs = int(ltoUtil.get_blocksize(config))
-    vectors = []
-    for id in items:
-        tape_id_qry = 'string(//'+domain+'[@id="'+id+'"]/../../@id)'
-        tar_block_qry = 'string(//'+domain+'[@id="'+id+'"]/../@block)'
-        record_offset_qry = 'string(//'+domain+'[@id="'+id+'"]/@recordOffset)'
-        filename_qry = 'string(//'+domain+'[@id="'+id+'"]/@filename)'
-        filesize_qry = 'string(//'+domain+'[@id="'+id+'"]/@size)'
-        md5_qry = 'string(//'+domain+'[@id="'+id+'"]/@md5)'
-        
-        tape_db = ltoUtil.get_lto_url(config)+'/data'
-        tape_id = ltoUtil.get_parsed_xquery_value(ltoUtil.exec_url_xquery(config, tape_db, tape_id_qry))[0]
-        tar_block = int(ltoUtil.get_parsed_xquery_value(ltoUtil.exec_url_xquery(config, tape_db, tar_block_qry))[0])
-        record_offset = int(ltoUtil.get_parsed_xquery_value(ltoUtil.exec_url_xquery(config, tape_db, record_offset_qry))[0])
-        filename = ltoUtil.get_parsed_xquery_value(ltoUtil.exec_url_xquery(config, tape_db, filename_qry))[0]
-        filesize = int(ltoUtil.get_parsed_xquery_value(ltoUtil.exec_url_xquery(config, tape_db, filesize_qry))[0])
-        md5 = ltoUtil.get_parsed_xquery_value(ltoUtil.exec_url_xquery(config, tape_db, md5_qry))[0]
-        block_offset = int(record_offset*512/bs)
-        seek_block = tar_block + block_offset
-        
-        v = [tape_id, seek_block, filesize, record_offset, filename, md5]
-        vectors.append(v)
+    ids = string.join(items, ',')
+    params = urllib.urlencode({'domain':domain, 'ids':ids})
+    conn = httplib.HTTPConnection(ltoUtil.get_host_port(config))
+    try:
+        conn.request('POST', ltoUtil.get_lto_url(config)+'/xquery/get-file-lto-vector.xql?'+params, None, {})
+        response = conn.getresponse()
+        data = response.read()
+        if '<exception>' in data:
+            print ltoUtil.get_xquery_exception_msg(data)
+            print ltoUtil.get_script_name()+' script terminated.'
+            sys.exit(2)
+    except httplib.HTTPException, e:
+        print 'Unable to connect to database'
+    else:
+        vectorsXmlDoc = xml.dom.minidom.parseString(data)
+        conn.close()
+        vector_elems = vectorsXmlDoc.getElementsByTagName('vector')
+        vectors = []
+        for v in vector_elems:
+            tapeId = v.getAttribute('tapeId')
+            tarBlock = int(v.getAttribute('tarBlock'))
+            recordOffset = int(v.getAttribute('recordOffset'))
+            filename = v.getAttribute('filename')
+            filesize = int(v.getAttribute('filesize'))
+            md5 = v.getAttribute('md5')
+            blockOffset = int(recordOffset*512/bs)
+            seekBlock = tarBlock + int(blockOffset)
+            vector = [tapeId, seekBlock, filesize, recordOffset, filename, md5]
+            vectors.append(vector)
         vectors.sort()
     return vectors
 
@@ -136,6 +148,28 @@ def restore_media_items(config, domain, vectors):
         else: 
             print 'MD5 verification failed for '+filename
         
+        #Rename files to include event metadata
+        extra_metadata_str = get_session_full_name(config, session_id)
+        filepath = restore_dir+'/'+filename
+        ltoUtil.move(filepath, filepath[:-4]+'_'+extra_metadata_str+'.'+ltoUtil.get_file_extn(filepath))
+        
         prev_tape_id = tape_id
 
     print '\nAll files successfully restored to '+ltoUtil.get_restore_dir(config)
+    
+def get_session_full_name(config, sessionId):
+    params = urllib.urlencode({'sessionId':sessionId})
+    conn = httplib.HTTPConnection(ltoUtil.get_host_port(config))
+    try:
+        conn.request('GET', ltoUtil.get_transcript_url(config)+'/xquery/get-session-full-name.xql?'+params, None, {})
+        response = conn.getresponse()
+        data = response.read()
+        if '<exception>' in data:
+            print ltoUtil.get_xquery_exception_msg(data)
+            print ltoUtil.get_script_name()+' script terminated.'
+            sys.exit(2)
+    except httplib.HTTPException, e:
+        print 'Unable to connect to database'
+    else:
+        conn.close()
+        return data
