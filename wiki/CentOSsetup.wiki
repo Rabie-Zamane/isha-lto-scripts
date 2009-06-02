@@ -54,6 +54,10 @@ If the server is powered on before the tape drive, then the tape drive will not 
 
 (replacing "?" with the number of the host - e.g. 0, 1, 2, 3)
 
+=== RAID disk setup ===
+
+mdadm -C --verbose --raid-devices=2 --chunk=256 --level=raid0 /dev/sdb1 /dev/sdd1
+
 === Enabling Firewire ===
 
 In order to facilitate receiving and offloading large amounts of data from external firewire drives, we need to enable firewire support in the linux kernel.
