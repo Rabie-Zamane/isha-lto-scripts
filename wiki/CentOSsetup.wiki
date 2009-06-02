@@ -78,6 +78,10 @@ See [http://wiki.centos.org/TipsAndTricks/NTFS#note_for_cplus this link] for mor
 
 See [http://wiki.centos.org/TipsAndTricks/ResizeExt3 this link] for more info
 
+=== Setting up a static IP address ===
+
+See [http://www.thewebmasterscafe.net/webhosting/how-to-configure-static-ip-address-on-centos-linux.html here] to find out how to configure a static IP address, and see [http://www.more.net/technical/netserv/tcpip/viewip.html here] to see how to find out the values of the needed parameters (subnet-mask, dns, defalt-gateway)
+
 == Software Installation ==
 
 === Installing Java ===
