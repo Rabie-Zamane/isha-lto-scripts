@@ -103,6 +103,8 @@ Set the $EXIST_HOME system environment variable by creating the file /etc/profil
 
 To configure eXist to start as a service...
 
+See [http://exist.sourceforge.net/quickstart.html#sect9 here]
+
 See [http://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-services.html this link] to learn more about services in RedHat
 
 === Installing the Flash Player plugin ===
