@@ -85,6 +85,7 @@ See [http://www.thewebmasterscafe.net/webhosting/how-to-configure-static-ip-addr
 === Transferring files between machines ===
 
 See [http://www.fedoraforum.org/forum/showthread.php?t=177674 here] for more info
+and [http://www.cyberciti.biz/faq/ftp-connection-refused-error-solution-to-problem/ here] for ftp info
 
 == Software Installation ==
 
