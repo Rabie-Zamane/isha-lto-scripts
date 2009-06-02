@@ -93,6 +93,17 @@ We need to install vsftpd on the server (and also on the media machine if we wan
 
 Note that we must allow FTP access in the Security and Firewall settings in order to be able to connect.
 
+To start vsftpd as a service on the server, first edit the file /etc/init.d/vsftpd and change the line "# chkconfig: - 60 50" to "# chkconfig: 2345 60 50" (i.e. replace the hyphen by the numbers 2345). Then execute the following commands as root:
+
+  * /sbin/chkconfig --del vsftpd (to delete the existing service configuration)
+  * /sbin/chkconfig --add vsftpd
+
+A handy alternative to using an FTP client is to do the following:
+
+  * On the menu, go to Places -> Connect to Server...
+  * Select ServiceType as FTP (with login) , and enter the the ip address of the server and optionally other info.
+
+This will put an icon on the desktop which can be used to access the remote system.
 
 == Software Installation ==
 
