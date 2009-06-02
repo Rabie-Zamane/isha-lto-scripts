@@ -105,6 +105,13 @@ A handy alternative to using an FTP client is to do the following:
 
 This will put an icon on the desktop which can be used to access the remote system.
 
+=== Database Backups with Cron ===
+
+We want to run a nightly backup of the database
+
+edit /etc/crontab
+edit /etc/cron.daily/exist.cron ...
+
 == Software Installation ==
 
 === Installing Java ===
