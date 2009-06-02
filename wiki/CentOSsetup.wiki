@@ -120,15 +120,33 @@ Set the $EXIST_HOME system environment variable by creating the file /etc/profil
 
   * export EXIST_HOME=/opt/exist 
 
-To configure eXist to start as a service...
+To configure eXist to start as a service
 
 See [http://exist.sourceforge.net/quickstart.html#sect9 here]
 
 See [http://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-services.html this link] to learn more about services in RedHat
 
+Create the following symlink
+
+  * ln -s $EXIST_HOME/tools/wrapper/bin/exist.sh /etc/init.d/exist
+
+Then edit the file so that it contains the following lines near the beginning of the file:
+
+# chkconfig: 2345 20 80
+# description: Starts and stops eXist xml database
+     
+This says that the random script should be started in levels 2,  3,  4,and 5, that its start priority should be 20, and that its stop priority should be 80. 
+
+Now execute the following command to add exist as a service:
+
+  * chkconfig --add exist
+
+
 === Bypassing the Firewall ===
 
-In order for other machines on the network to access the exist database we must configure the firewall to allow access to port 8080 (the default port which exist uses). To do this, go to System -> Administration -> Security Level and Firewall, and under "Other Ports" add 8080 (tcp).
+In order for other machines on the network to access the exist database we must configure the firewall to allow access to port 8080 (the default port which exist uses). To do this, go to System -> Administration -> Security Level and Firewall, and under "Other Ports" add 8080 (tcp). 
+
+In order to allow files to be accessed using FTP we must also check the "allow FTP" checkbox.
 
 === Installing the Flash Player plugin ===
 
