@@ -103,6 +103,8 @@ Set the $EXIST_HOME system environment variable by creating the file /etc/profil
 
 To configure eXist to start as a service...
 
+See [http://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-services.html this link] to learn more about services in RedHat
+
 === Installing the Flash Player plugin ===
 
 You can get the latest Flash Player plugin from [http://get.adobe.com/flashplayer/ here], and select the YUM download option.
