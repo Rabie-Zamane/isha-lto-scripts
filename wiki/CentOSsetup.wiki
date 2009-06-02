@@ -56,13 +56,21 @@ If the server is powered on before the tape drive, then the tape drive will not 
 
 === Enabling Firewire ===
 
-In order to facilitate receiving and offloading large amounts of data, we have decided to use a firewire connection to the server.
+In order to facilitate receiving and offloading large amounts of data from external firewire drives, we need to enable firewire support in the linux kernel.
 
-By default RedHat/CentOS does not have firewire support enabled in the kernel. This means that either one must recompile the kernel enabling the appropriate kernel modules - or more easily - upgrade to the CentOSPlus kernel, which has firewire support enabled. (We have chosen the latter - for the sake of simplicity).
+By default RedHat/CentOS does not have firewire support enabled in the kernel. This means that either one must recompile the kernel enabling the appropriate kernel modules - or more easily - upgrade to the CentOSPlus kernel, which has firewire support enabled automatically. (We have chosen the latter - for the sake of simplicity).
 
-...Stuff about editing YUM configuration files (exclude and priority options)...
+See [http://wiki.centos.org/AdditionalResources/Repositories/CentOSPlus this link] for details on how to set up the yum configuration files properl
 
 NOTE: If using the HP HBA Card driver this would cause a problem since the HP HBA card requires us to have one of a specified list of kernel versions  - of which the CentOSPlus kernel is not one of.
+
+=== Enabling NTFS Read/Write Support ===
+
+See [http://wiki.centos.org/TipsAndTricks/NTFS#note_for_cplus this link] for more info
+
+=== Resizing Ext3 partitions ===
+
+See [http://wiki.centos.org/TipsAndTricks/ResizeExt3 this link] for more info
 
 == Software Installation ==
 
@@ -70,16 +78,18 @@ NOTE: If using the HP HBA Card driver this would cause a problem since the HP HB
 
 Get the latest version of the Java jdk from [http://java.sun.com/javase/downloads/index.jsp Sun's website]. Move the binary executable to /opt and execute it as root.
 
-Clear instructions on how to perform the installation can be found [http://www.cyberciti.biz/faq/linux-unix-set-java_home-path-variable/ here]. (See the comments by Mustafa Buljubasic)
+Instructions on how to perform the installation can be found [http://www.cyberciti.biz/faq/linux-unix-set-java_home-path-variable/ here]. (See the comments by Mustafa Buljubasic)
 
-Set the $JAVA_HOME and $PATH system environment variables by executing the following commands as root:
+Ensure that you use the 'alternatives' command to use sun's version of java.
 
-  * echo export JAVA_HOME=/usr/local/java > /etc/profile.d/jdk.sh
-  * echo export PATH=$JAVA_HOME/bin:$PATH >> /etc/profile.d/jdk.sh
+Set the $JAVA_HOME and $PATH system environment variables by creating the file /etc/profile.d/jdk.sh with the following lines:
+
+  * export JAVA_HOME=/opt/jdk1.6.0_13 (or whatever version of Java you have) 
+  * export PATH=$JAVA_HOME/bin:$PATH
 
 === Installing eXist ===
 
-Get the latest stable version of the eXist xml database from [http://exist.sourceforge.net/download.html here].
+Get the latest stable version of the eXist xml database from [http://exist.sourceforge.net/download.html here], and copy it to /opt
 
 Install it by typing the following command as root
 
@@ -87,9 +97,9 @@ Install it by typing the following command as root
 
 Note: this will create the admin user with a blank password - so you must set this as soon as possible afterwards to secure your database.
 
-Set the $EXIST_HOME system environment variable by executing the following command as root:
+Set the $EXIST_HOME system environment variable by creating the file /etc/profile.d/jdk.sh with the following lines:
 
-  * echo export EXIST_HOME=/usr/local/exist > /etc/profile.d/exist.sh
+  * export EXIST_HOME=/opt/exist 
 
 To configure eXist to start as a service...
 
