@@ -82,10 +82,14 @@ See [http://wiki.centos.org/TipsAndTricks/ResizeExt3 this link] for more info
 
 See [http://www.thewebmasterscafe.net/webhosting/how-to-configure-static-ip-address-on-centos-linux.html here] to find out how to configure a static IP address, and see [http://www.more.net/technical/netserv/tcpip/viewip.html here] to see how to find out the values of the needed parameters (subnet-mask, dns, defalt-gateway)
 
-=== Transferring files between machines ===
+=== Transferring files between machines (FTP) ===
 
 See [http://www.fedoraforum.org/forum/showthread.php?t=177674 here] for more info
-and [http://www.cyberciti.biz/faq/ftp-connection-refused-error-solution-to-problem/ here] for ftp info
+and [http://www.cyberciti.biz/faq/ftp-connection-refused-error-solution-to-problem/ here] for ftp info.
+
+After testing different methods of transferring files between the two machines - we found that FTP was the fastest by a large margin (85MBps compared to 30MBps for scp). This allows us to transfer around 100GB of data between the machines in approx 20mins.
+
+We need to install vsftpd on the server (and also on the media machine if we want to send files to it from the server). On the media machine we installed gftp to provide a GUI for the ftp command.
 
 == Software Installation ==
 
