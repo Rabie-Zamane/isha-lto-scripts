@@ -119,11 +119,13 @@ In order for other machines on the network to access the exist database we must 
 
 === Installing the Flash Player plugin ===
 
-You can get the latest Flash Player plugin from [http://get.adobe.com/flashplayer/ here], and select the YUM download option.
+You can get the latest Flash Player plugin from [http://get.adobe.com/flashplayer/ here], and select the YUM download option (and running the file). This will create an adobe yum repository file in /etc/yum.repos.d. Now the plugin can be installed by executing:
+
+  * yum install flash-plugin
 
 === Installing ts4isha ===
 
-After installing, point your web browser at [http://localhost:8080/exist/ts4isha/TranscriptStudio.swf] to access the Transcript Studio application.
+After installing, point your web browser at [http://localhost:8080/exist/ts4isha/TranscriptStudio.swf] to access the Transcript Studio application. (Note that you must have already installed the adobe flash-plugin for this to work).
 
 == General Hints ==
 
