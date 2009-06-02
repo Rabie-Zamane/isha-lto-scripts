@@ -1,6 +1,6 @@
 #summary Instructions on how to configure CentOS with necessary software
 
-= Introductions =
+= Introduction =
 
 This document contains the instructions on how to install and configure the CentOS Operating System, installing the necessary software and hardware, to be able to perform the LTO backups, and to run the TranscriptStudio application.
 
