@@ -16,6 +16,8 @@ CentOS aims to be, as far as possible, a "binary clone" of RHEL (using the freel
 
 == Installing CentOS ==
 
+During the install enable the Firewall
+
 We need to install the latest version of CentOS (with the CentOS Plus repository enabled, and with the CentOSPlus kernel). The CentOS Plus repository contains extra packages which are not in the official RedHat distribution - so it means that is "unsupported". However, we require the firewire IE1394 support, which is only enabled in the CentOS Plus kernel)
 
 We also need to enable the 3rd part repository RPMForge in order to get the gparted partitioning package. See [http://wiki.centos.org/AdditionalResources/Repositories/RPMForge/ here] for guidelines on how to do this
@@ -110,6 +112,10 @@ To configure eXist to start as a service...
 See [http://exist.sourceforge.net/quickstart.html#sect9 here]
 
 See [http://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-services.html this link] to learn more about services in RedHat
+
+=== Bypassing the Firewall ===
+
+In order for other machines on the network to access the exist database we must configure the firewall to allow access to port 8080 (the default port which exist uses). To do this, go to System -> Administration -> Security Level and Firewall, and under "Other Ports" add 8080 (tcp).
 
 === Installing the Flash Player plugin ===
 
