@@ -91,6 +91,9 @@ After testing different methods of transferring files between the two machines -
 
 We need to install vsftpd on the server (and also on the media machine if we want to send files to it from the server). On the media machine we installed gftp to provide a GUI for the ftp command.
 
+Note that we must allow FTP access in the Security and Firewall settings in order to be able to connect.
+
+
 == Software Installation ==
 
 === Installing Java ===
@@ -146,7 +149,6 @@ Now execute the following command to add exist as a service:
 
 In order for other machines on the network to access the exist database we must configure the firewall to allow access to port 8080 (the default port which exist uses). To do this, go to System -> Administration -> Security Level and Firewall, and under "Other Ports" add 8080 (tcp). 
 
-In order to allow files to be accessed using FTP we must also check the "allow FTP" checkbox.
 
 === Installing the Flash Player plugin ===
 
