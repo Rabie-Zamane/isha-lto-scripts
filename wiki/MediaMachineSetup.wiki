@@ -18,7 +18,13 @@ We have installed CentOSPlus as our OS.
 
 On the Media Machine we will only be running the first of the lto scripts (lto-tar). 
 
+=== eXist Database setup ===
 
+We need to do the following things to set up the eXist database to be able to store the lto tape index files.
+
+  * Create a top-level collection called "lto4isha" (at the same level as ts4isha), with corresponding "data", and "xquery" sub collections.
+
+  * Add the .xql files from the lto4isha distribution to the xquery collection, (get-file-lto-vector.xql, get-session-full-name.xql, import-tape-element.xql) 
 
 Add your content here.
 
