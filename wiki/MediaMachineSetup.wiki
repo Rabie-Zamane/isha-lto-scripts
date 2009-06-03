@@ -1,0 +1,31 @@
+#summary This page describes how to set up the Media Machine.
+
+= Introduction =
+
+This machine will receive all media files and perform the first stage of the LTO processing on them. This includes manually checking/viewing the media files (using the winxp-xdcam-clipbrowser virtual machine), creating low resolution preview versions, creating PAR2 error correction files, and building session-device tar archive files ready to be written to tape.
+
+The tar files will then be transferred to the server via FTP
+
+== Hardware Setup ==
+
+The machine we are using for the "Media Machine" is a Lenovo PC...
+
+== Software Setup ==
+
+We have installed CentOSPlus as our OS.
+
+=== Python LTO Scripts ===
+
+On the Media Machine we will only be running the first of the lto scripts (lto-tar). 
+
+
+
+Add your content here.
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
