@@ -30,6 +30,8 @@ We need to do the following things to set up the eXist database to be able to st
 
 The version of python included with CentOS 5.3 (v2.4.3) is too old and doesn't have some of the libraries we need. So we need to download the python source for the latest stable release (v2.6.2) from [http://www.python.org/download/releases/2.6.2/ here], and build it oureselves.
 
+=== Installing par2 ===
+
 === Installing ffmpeg ===
 
 Since the version of ffmpeg available in the rpmforge repository is not recent enough to handle H.264 video encoding properly, we need to build ffmpeg from source, with the necessary codec libraries. [http://thenitai.com/2009/02/24/installing-ffmpeg-on-centosredhat-5x-successfully/ This page] explains how to do this. 
