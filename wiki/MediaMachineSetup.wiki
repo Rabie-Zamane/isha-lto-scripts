@@ -41,3 +41,8 @@ Note that we first need to install the development tools package group:
   #  yum groupinstall 'Development Tools'
 
 We also need to install the 'git' package to access the most recent version of the x264 library from their git repository.
+
+
+=== JW Player Embedding ===
+
+Note that the playerReady() function does not get called in Linux unless the flashvar id variable is set. See [http://www.longtailvideo.com/support/forum/JavaScript-Interaction/17227/Firefox-3-playerReady-never-gets-called#msg116643 here] for details.
