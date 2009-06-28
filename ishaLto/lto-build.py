@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python2.6
 
 import ConfigParser
 import ltoUtil
