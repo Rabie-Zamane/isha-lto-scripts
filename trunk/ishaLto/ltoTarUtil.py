@@ -9,13 +9,12 @@ import urllib
 import httplib
 import re
 import base64
-import pyexiv2
 import smtplib
 import ltoUtil
 
 def check_tar_args(args):
-    if not len(args) == 3:
-        print 'Exactly three arguments must be provided. (session id, device code, media path).' 
+    if not len(args) == 5:
+        print 'Exactly five arguments must be provided. (session id, device code, media path, username, password).' 
         print ltoUtil.get_script_name()+' script terminated.'
         sys.exit(2)
         
@@ -294,11 +293,16 @@ def generate_db_media_xml_element(media_path, domain, category, media_id, config
                 sys.exit(2)    
             mp4xml = mfile.read()
             timestamp = get_sonyxdcam_timestamp(mp4xml)
+	    timecode = get_sonyxdcam_timecode(mp4xml)
             original_id = get_original_id(media_path)
             duration = get_media_duration(media_path)
             auto_split = get_autosplit(media_path)
-            attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration,'autoSplit':auto_split}    
+            attributes = {'timestamp':timestamp, 'originalId':original_id, 'duration':duration, 'autoSplit':auto_split, 'timecode':timecode}    
         elif category == 'video':
+            original_id = get_original_id(media_path)
+            duration = get_media_duration(media_path)
+            attributes = {'originalId':original_id, 'duration':duration}
+	elif category == 'audio':
             original_id = get_original_id(media_path)
             duration = get_media_duration(media_path)
             attributes = {'originalId':original_id, 'duration':duration}
@@ -352,29 +356,45 @@ def create_media_xml_element(domain, attributes, media_id):
     return media_xml
 
 def get_image_timestamp(media_path):
-    image = pyexiv2.Image(media_path)
-    image.readMetadata()
-    ts = str(image['Exif.Image.DateTime'])
-    year = ts[0:4]
-    month = ts[5:7]
-    day = ts[8:10]
-    time = ts[11:20]
-    dt = year+'-'+month+'-'+day+'T'+time
-    return dt
-
-def get_orientation(media_path):
-    image = pyexiv2.Image(media_path)
-    image.readMetadata()
-    exif_keys = image.exifKeys()
-    if 'Exif.Image.Orientation' in exif_keys:
-        orientation = int(image['Exif.Image.Orientation'])
+    p = subprocess.Popen('exiv2 pr -P kv '+media_path+' | grep -a Exif.Photo.DateTimeOriginal', shell=True, stdout=subprocess.PIPE)
+    stdout_value = p.stdout.readlines()
+    sts = os.waitpid(p.pid, 0)
+    if len(stdout_value) > 0:
+        ts = stdout_value[0]
+        ts = string.strip(ts[ts.index(' '):])
+        year = ts[0:4]
+        month = ts[5:7]
+        day = ts[8:10]
+        time = ts[11:20]
+        dt = year+'-'+month+'-'+day+'T'+time
     else:
-        orientation = 0
-    return orientation
+        dt = ''
+    return dt
+    
+def get_orientation(media_path):
+    p = subprocess.Popen('exiv2 pr -P kv '+media_path+' | grep -a Exif.Image.Orientation', shell=True, stdout=subprocess.PIPE)
+    stdout_value = p.stdout.readlines()
+    sts = os.waitpid(p.pid, 0)
+    if (len(stdout_value) > 0):
+        orient = stdout_value[0]
+        orient = int(string.strip(orient[orient.index(' '):]))
+    else:
+        orient = 0
+    return orient
 
 def get_sonyxdcam_timestamp(xml):
     start = xml.find('<CreationDate value="')+21
     return xml[start:start+19]
+
+def get_sonyxdcam_timecode(xml):
+    start = xml.find('<LtcChange frameCount="0" value="')+33
+    tc = xml[start:start+8]
+    hr = tc[6:8]
+    min = tc[4:6]
+    sec = tc[2:4]
+    fr = tc[0:2]
+    timecode = hr+':'+min+':'+sec+':'+fr
+    return timecode
 
 def get_fostexaudio_timestamp(xml):
     start = xml.find('<SCENE>')+7
@@ -405,11 +425,15 @@ def get_original_id(file):
     return file[file.rfind('/')+1:-4]
 
 def get_autosplit(media_path):
+    file = ltoUtil.get_filename(media_path)
+    path = ltoUtil.get_path(media_path)
+    extn = ltoUtil.get_file_extn(media_path)
     suffix = int(media_path[-6:-4])
-    extn = media_path[-3:]
     next_suffix = '%02d' % (suffix +1)
-    next_media_path = media_path[:-6]+next_suffix+'.'+extn
-    if os.path.exists(next_media_path):
+    new_file = file[:-6]+next_suffix+'.'+extn
+    new_path = path[:-2]+next_suffix
+    new_media_path = new_path + '/' + new_file
+    if os.path.exists(new_media_path):
         return True
     return False
 
@@ -423,7 +447,6 @@ def get_media_duration(media_file):
             return duration
     
 def generate_par2_tar(config, new_filepath):
-    par2_cmd = config.get('Par2', 'cmd')
     par2_redundancy = config.getint('Par2', 'redundancy')
     par2_numfiles = config.getint('Par2', 'num_files')
     par2_memory = config.getint('Par2', 'memory')
@@ -432,7 +455,7 @@ def generate_par2_tar(config, new_filepath):
     path = ltoUtil.get_path(new_filepath)
     
     print 'Generating PAR2 files for '+fn+'\n'
-    p = subprocess.Popen(par2_cmd +' create -r'+str(par2_redundancy)+' -m'+str(par2_memory)+' -n'+str(par2_numfiles)+' '+new_filepath, shell=True)
+    p = subprocess.Popen('par2 create -r'+str(par2_redundancy)+' -m'+str(par2_memory)+' -n'+str(par2_numfiles)+' '+new_filepath, shell=True)
     sts = os.waitpid(p.pid, 0)
     par2files = []
     for f in os.listdir(path):
@@ -445,52 +468,72 @@ def generate_par2_tar(config, new_filepath):
     for p in par2files:
         os.remove(os.path.join(path, p))
     
-def generate_low_res(domain, filepath, dir):
-    if os.path.exists(dir+'/'+domain):
-        if (domain == 'video'):
-            video_type = get_video_type(filepath)
-            if video_type == 'DV_PAL' or video_type == 'DV_NTSC' or video_type == 'MPEG2_H-14':
-                preview_size = '384x288'
-            elif video_type == 'MPEG2_HL':
-                preview_size = '512x288'
-            preview_suff = 'h264-'+preview_size
-            preview_file = filepath[0:-4]+'_'+preview_suff+'.mp4'
-            fn = ltoUtil.get_filename(preview_file)
-            p = subprocess.Popen('ffmpeg -y -i '+filepath+' -pass 1 -vcodec libx264 -vpre fastfirstpass -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+filepath+' -pass 2 -acodec libfaac -ab 128k -vcodec libx264 -vpre hq -s '+preview_size+' -b 512k -bt 512k -threads 0 -f mp4 '+dir+'/'+domain+'/'+fn, shell=True)
-            sts = os.waitpid(p.pid, 0)
-            os.remove('ffmpeg2pass-0.log')
-            os.remove('x264_2pass.log')
+def generate_proxy(config, domain, filepath):
+    proxy_dir = ltoUtil.get_proxy_dir(config)
+    thumb_dir = ltoUtil.get_thumb_dir(config)
+    proxy_suffix = 'proxy'
+    thumb_suffix = 'thumb'
+    if os.path.exists(proxy_dir+'/'+domain):
+	if (domain =='image' or domain == 'video'):
+	    if os.path.exists(thumb_dir+'/'+domain):
+                if (domain == 'video'):
+                    video_type = get_video_type(filepath)
+                    if video_type == 'DV_PAL' or video_type == 'DV_NTSC' or video_type == 'MPEG2_H-14':
+                        proxy_size = '384x288'
+		        thumb_size = '96x72'
+                    elif video_type == 'MPEG2_HL':
+                        proxy_size = '512x288'
+		        thumb_size = '128x72'
+                    fn = ltoUtil.get_filename(filepath)
+                    fn_proxy = fn[0:-4]+'_'+proxy_suffix+'.mp4'
+		    fn_thumb = fn[0:-4]+'_'+thumb_suffix+'.jpg'
+                    p = subprocess.Popen('ffmpeg -y -i '+filepath+' -pass 1 -vcodec libx264 -coder 1 -flags +loop -cmp +chroma -partitions -parti8x8-parti4x4-partp8x8-partp4x4-partb8x8 -me_method dia -subq 1 -me_range 16 -g 25 -keyint_min 25 -sc_threshold 40 -i_qfactor 0.71 -b_strategy 1 -qcomp 0.6 -qmin 10 -qmax 51 -qdiff 4 -bf 4 -refs 1 -directpred 3 -trellis 0 -flags2 -bpyramid-wpred-mixed_refs-dct8x8+fastpskip -s '+proxy_size+' -b 512k -bt 512k -threads 0 -f mp4 -an /dev/null && ffmpeg -y -i '+filepath+' -pass 2 -acodec libfaac -ar 44100 -ab 96k -vcodec libx264 -coder 1 -flags +loop -cmp +chroma -partitions +parti8x8+parti4x4+partp8x8+partb8x8 -me_method umh -subq 8 -me_range 16 -g 25 -keyint_min 25 -sc_threshold 40 -i_qfactor 0.71 -b_strategy 2 -qcomp 0.6 -qmin 10 -qmax 51 -qdiff 4 -bf 4 -refs 4 -directpred 3 -trellis 1 -flags2 +bpyramid+wpred+mixed_refs+dct8x8+fastpskip -s '+proxy_size+' -b 512k -bt 512k -g 25 -threads 0 -f mp4 '+proxy_dir+'/video/'+fn_proxy, shell=True)
+                    sts = os.waitpid(p.pid, 0)
+                    os.remove('ffmpeg2pass-0.log')
+                    os.remove('x264_2pass.log')
+	            p = subprocess.Popen('ffmpeg -y -i '+proxy_dir+'/video/'+fn_proxy+' -vcodec mjpeg -vframes 1 -an -f rawvideo -s '+thumb_size+' '+thumb_dir+'/video/'+fn_thumb, shell=True)
+                    sts = os.waitpid(p.pid, 0)
+                elif (domain =='image'):
+                    orientation = get_orientation(filepath)
+                    file_type = ltoUtil.get_file_extn(filepath)
+                    if orientation in [0,1,2,3,4] and file_type == 'jpg':
+                        proxy_size = '1024x680'
+                        thumb_size = '128x85'
+                    elif orientation in [0,1,2,3,4] and file_type in ['nef', 'cr2']:
+                        proxy_size = '1024x680'
+                        thumb_size = '128x85'
+                    elif orientation in [5,6,7,8] and file_type == 'jpg':
+                        proxy_size = '1024x680'
+                        thumb_size = '128x85'
+                    #We need to do this since we are extracting the embedded image from the raw files - which has no EXIF data
+                    elif orientation in [5,6,7,8] and file_type in ['nef', 'cr2']:
+                        proxy_size = '680x1024'
+                        thumb_size = '85x128'
+                    fn = ltoUtil.get_filename(filepath)
+                    fn_proxy = fn[0:-4]+'_'+proxy_suffix+'.jpg'
+                    fn_thumb = fn[0:-4]+'_'+thumb_suffix+'.jpg'
+                    if string.lower(file_type) == 'jpg':
+                        p = subprocess.Popen('convert -thumbnail '+proxy_size+' -auto-orient -unsharp 0x.5 -quality 92 '+filepath+' '+proxy_dir+'/image/'+fn_proxy, shell=True)
+                        sts = os.waitpid(p.pid, 0)
+                    #Much faster to extract the embedded image from the RAW file instead of resizing
+                    elif string.lower(file_type) == 'nef' or string.lower(file_type) == 'cr2':
+                        p = subprocess.Popen('dcraw -ce '+filepath+' | convert -thumbnail '+proxy_size+' -auto-orient -unsharp 0x.5 -quality 92 - '+proxy_dir+'/image/'+fn_proxy, shell=True)
+                        sts = os.waitpid(p.pid, 0)
+                    p = subprocess.Popen('convert -thumbnail '+thumb_size+' -auto-orient '+proxy_dir+'/image/'+fn_proxy+' '+thumb_dir+'/image/'+fn_thumb, shell=True)
+                    sts = os.waitpid(p.pid, 0)
+            else:
+                print 'thumbnail directory '+thumb_dir+'/'+domain+' does not exist.'
+                print ltoUtil.get_script_name()+' script terminated.'
+                sys.exit(2)
         elif (domain =='audio'):
-            preview_suff = '64k'
-            preview_file = filepath[0:-4]+'_'+preview_suff+'.mp3'
-            fn = ltoUtil.get_filename(preview_file)
-            p = subprocess.Popen('ffmpeg -y -i '+filepath+' -acodec libmp3lame -ab 64k -ac 1 -f mp3 '+dir+'/'+domain+'/'+fn, shell=True)
+            fn = ltoUtil.get_filename(filepath)
+            fn_proxy = fn[0:-4]+'_'+proxy_suffix+'.mp4'
+            p = subprocess.Popen('ffmpeg -y -i '+filepath+' -acodec libfaac -ar 44100 -ab 96k -ac 1 -f mp4 '+proxy_dir+'/audio/'+fn_proxy, shell=True)
             sts = os.waitpid(p.pid, 0)
-        elif (domain =='image'):
-            orientation = get_orientation(filepath)
-            file_type = ltoUtil.get_file_extn(filepath)
-            if orientation in [0,1,2,3,4] and file_type == 'jpg':
-                geometry = '1024x680'
-            elif orientation in [0,1,2,3,4] and file_type in ['nef', 'cr2']:
-                geometry = '1024x680'
-            elif orientation in [5,6,7,8] and file_type == 'jpg':
-                geometry = '1024x680'
-            #We need to do this since we are extracting the embedded image from the raw files - which has no EXIF data
-            elif orientation in [5,6,7,8] and file_type in ['nef', 'cr2']:
-                geometry = '680x1024'
-            preview_file = filepath[0:-4]+'_'+geometry+'.jpg'
-            fn = ltoUtil.get_filename(preview_file)
-            if string.lower(file_type) == 'jpg':
-                p = subprocess.Popen('convert -thumbnail '+geometry+' -auto-orient -unsharp 0x.5 -quality 92 '+filepath+' '+dir+'/'+domain+'/'+fn, shell=True)
-                sts = os.waitpid(p.pid, 0)
-            #Much faster to extract the embedded image from the RAW file instead of resizing
-            elif string.lower(file_type) == 'nef' or string.lower(file_type) == 'cr2':
-                p = subprocess.Popen('ufraw-batch --embedded-image --output=- '+filepath+' | convert -thumbnail '+geometry+' -auto-orient -unsharp 0x.5 -quality 92 - '+dir+'/'+domain+'/'+fn, shell=True)
-                sts = os.waitpid(p.pid, 0)
     else:
-        print 'preview directory '+preview_dir+'/'+domain+' does not exist.'
+        print 'proxy directory '+proxy_dir+'/'+domain+' does not exist.'
         print ltoUtil.get_script_name()+' script terminated.'
-        sys.exit(2)
+        sys.exit(2)   
     
 def get_video_type(filepath):
     p = subprocess.Popen('ffmpeg -i '+filepath, shell=True, stderr=subprocess.PIPE)
@@ -538,8 +581,9 @@ def db_add_media_xml(config, db_media_xml_doc, username, password):
                 elif response.status == 401 and response.reason == 'Unauthorized':
                     print 'Authentication Failed.'
                     return False
-            except httplib.HTTPException, e:
+            except Exception, e:
                 print 'Unable to connect to database'
+                return False
     conn.close()
     return True
 
@@ -580,26 +624,36 @@ def update_tar_xml_root_attributes(config, doc, tar_name):
     doc.documentElement.setAttribute('md5', ltoUtil.get_md5_hash(ltoUtil.get_tar_build_dir(config)+'/'+tar_name))
     doc.documentElement.setAttribute('size', str(ltoUtil.get_filesize(ltoUtil.get_tar_build_dir(config)+'/'+tar_name)))
 
-def media_process_loop(domain, category, config, session_id, path, db_media_xml_doc, tar_xml_doc): 
+def main_loop(domain, category, config, session_id, path, db_media_xml_doc, tar_xml_doc): 
     previous_id = None
+    filelist = []
     for dirpath, dirnames, filenames in os.walk(path):
         for file in filenames:
+	    fp = os.path.join(dirpath, file)
             if media_in_domain(file, domain, config):
-
-                filepath = os.path.join(dirpath, file)
-                media_id = get_new_media_id(session_id, domain, category, config, previous_id, filepath)
-                db_media_xml_element = generate_db_media_xml_element(filepath, domain, category, media_id, config)
-                append_db_media_xml_element(db_media_xml_doc, db_media_xml_element)
-                
-                new_filepath = get_new_filepath(config, domain, media_id, filepath)
-                ltoUtil.copy_file(filepath, new_filepath)
-                
-                generate_par2_tar(config, new_filepath)
-                proxy_media_dir = ltoUtil.get_proxy_media_dir(config)
-                generate_low_res(domain, new_filepath, proxy_media_dir)
-                append_tar_media_xml_element(tar_xml_doc, new_filepath, domain, media_id)
-                previous_id = media_id
+		filelist.append(fp)
+    filelist.sort()
+    for filepath in filelist:
+        media_id = get_new_media_id(session_id, domain, category, config, previous_id, filepath)
+        db_media_xml_element = generate_db_media_xml_element(filepath, domain, category, media_id, config)
+        append_db_media_xml_element(db_media_xml_doc, db_media_xml_element)
+               
+        new_filepath = get_new_filepath(config, domain, media_id, filepath)
+        ltoUtil.copy_file(filepath, new_filepath)
+        generate_par2_tar(config, new_filepath)
+        append_tar_media_xml_element(tar_xml_doc, new_filepath, domain, media_id)
+        previous_id = media_id
                     
+def generate_proxy_files(config, domain):
+    dir = ltoUtil.get_tar_build_dir(config)
+    filelist = []
+    for file in os.listdir(dir):
+        if media_in_domain(file, domain, config):
+            filepath = os.path.join(dir, file)
+            filelist.append(filepath)
+    filelist.sort()
+    for filepath in filelist:
+        generate_proxy(config, domain, filepath)
                     
 def create_tar_archive(config, session_id, device_code, tar_xml_doc):
     ref_file_name = session_id+'-'+device_code+'-referenced-items.xml'
@@ -634,22 +688,22 @@ def create_tar_xml_file(config, session_id, device_code, tar_xml_doc):
     xmlfile.close()
     
     
-def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc):
+def write_media_xml_to_db(config, session_id, device_code, db_media_xml_doc, username, password):
     
     #Ask user for confirmation to write media xml to database
-    update = raw_input('\nUpdate database with session-media metadata? [y/n]: ')
+    #update = raw_input('\nUpdate database with session-media metadata? [y/n]: ')
     xml_media_filename = session_id+'-'+device_code+'-media.xml' 
     xml_media_filepath = config.get('Dirs', 'tar_archive_dir')+'/'+xml_media_filename
-    if update == 'y':
-        username = raw_input('username: ')
-        password = getpass.getpass('password: ')
-        if db_add_media_xml(config, db_media_xml_doc, username, password):
-            print '\nDatabase updated'
-        else:
-            print '\nFailed to update database'
-            ltoUtil.write_xml(db_media_xml_doc, xml_media_filepath)
-            print '\nMedia xml saved to '+xml_media_filepath
+    #if update == 'y':
+    #   username = raw_input('username: ')
+    #   password = getpass.getpass('password: ')
+    if db_add_media_xml(config, db_media_xml_doc, username, password):
+        print '\nDatabase updated'
     else:
+        print '\nFailed to update database'
         ltoUtil.write_xml(db_media_xml_doc, xml_media_filepath)
         print '\nMedia xml saved to '+xml_media_filepath
+    #else:
+    #   ltoUtil.write_xml(db_media_xml_doc, xml_media_filepath)
+    #   print '\nMedia xml saved to '+xml_media_filepath
         

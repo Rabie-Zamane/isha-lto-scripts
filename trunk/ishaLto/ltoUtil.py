@@ -11,9 +11,34 @@ import httplib
 import shutil
 import datetime
 import hashlib
+import getpass
+import base64
 
 def get_script_name():
     return get_filename(sys.argv[0])
+
+def authenticate(config, username, password):
+    base64string = base64.encodestring('%s:%s' % (username, password))[:-1]
+    authheader =  "Basic %s" % base64string
+    headers = {'Authorization': authheader}
+    conn = httplib.HTTPConnection(get_host_port(config))
+    try:
+        conn.request('GET', get_transcript_url(config)+'/xquery/admin-authenticate.xql', None, headers)
+        response = conn.getresponse()
+        data = response.read()
+        if '<exception>' in data:
+            print get_xquery_exception_msg(data)
+            print get_script_name()+' script terminated.'
+            sys.exit(2)
+	elif not(data == 'true'):
+	    print 'Invalid username or password. Authentication failed.'
+            print get_script_name()+' script terminated.'
+            sys.exit(2)
+    except Exception, e:
+        print 'Unable to connect to database'
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+    conn.close()
 
 def path_check(path):
     if not os.path.exists(path):
@@ -56,7 +81,6 @@ def valid_chars(string):
 def load_config(config):
     config_filename = 'lto.conf'
     lto_home = os.environ.get('LTO_HOME')
-    lto_home = '/home/kevala/workspace/ishaLto'
     if lto_home:
         conf_path = os.path.join(lto_home, config_filename)
         if os.path.exists(conf_path):
@@ -73,6 +97,8 @@ def load_config(config):
 def config_checks(config):
     tar_archive_dir = config.get('Dirs', 'tar_archive_dir')
     proxy_media_dir = config.get('Dirs', 'proxy_media_dir')
+    tar_build_dir = config.get('Dirs', 'temp_dir')+'/build-tar'
+    tape_verify_dir = config.get('Dirs', 'temp_dir')+'/verify-tape'
     host = config.get('Connection', 'host')
     port = config.get('Connection', 'port')
     transcript_xmldb_root = config.get('Connection', 'transcript_xmldb_root')
@@ -81,17 +107,24 @@ def config_checks(config):
     max_gb = config.get('Tape', 'max_gb')
     min_gb = config.get('Tape', 'min_gb')
     index_size_mb = config.get('Tape', 'index_size_mb')
-    cmd = config.get('Par2', 'cmd')
     redundancy = config.getint('Par2', 'redundancy')
     num_files = config.getint('Par2', 'num_files')
     memory = config.getint('Par2', 'memory')
     
     if not os.path.exists(tar_archive_dir):
-        print 'Config Error: tar_archive_dir is not a valid path.'
+        print 'Config Error: '+tar_archive_dir+' is not a valid path.'
         print get_script_name()+' script terminated.'
         sys.exit(2)
     if not os.path.exists(proxy_media_dir):
-        print 'Config Error: proxy_media_dir is not a valid path.'
+        print 'Config Error: '+proxy_media_dir+' is not a valid path.'
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+    if not os.path.exists(tar_build_dir):
+        print 'Config Error: '+tar_build_dir+' is not a valid path.'
+        print get_script_name()+' script terminated.'
+        sys.exit(2)
+    if not os.path.exists(tape_verify_dir):
+        print 'Config Error: '+tape_verify_dir+' is not a valid path.'
         print get_script_name()+' script terminated.'
         sys.exit(2)
     if not (host == 'localhost' or re.match(r'^([0-9]{1,3}\.){3}[0-9]{1,3}$', host)):
@@ -187,8 +220,11 @@ def get_tape_pending_dir(config):
 def get_tape_written_dir(config):
     return config.get('Dirs', 'virtual_tape_dir')+'/written'
 
-def get_proxy_media_dir(config):
+def get_proxy_dir(config):
     return config.get('Dirs', 'proxy_media_dir')
+
+def get_thumb_dir(config):
+    return config.get('Dirs', 'thumb_media_dir')
 
 def get_restore_dir(config):
     return config.get('Dirs', 'restore_dir')
