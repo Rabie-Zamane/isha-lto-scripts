@@ -156,7 +156,7 @@ Then edit the file so that it contains the following lines near the beginning of
 # chkconfig: 2345 20 80
 
 # description: Starts and stops eXist xml database
-     
+
 This says that the script should be started in levels 2,  3,  4,and 5, that its start priority should be 20, and that its stop priority should be 80. 
 
 Now execute the following command to add exist as a service:
