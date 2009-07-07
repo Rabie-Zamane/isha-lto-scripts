@@ -133,11 +133,11 @@ Get the latest stable version of the eXist xml database from [http://exist.sourc
 
 Install it by typing the following command as root
 
-  * java -jar eXist-{version}.jar -p /usr/local/exist
+  * java -jar eXist-{version}.jar
 
-Note: this will create the admin user with a blank password - so you must set this as soon as possible afterwards to secure your database.
+Note: Ensure that you specify a non-empty password for the admin user, else this may cause problems later on.
 
-Set the $EXIST_HOME system environment variable by creating the file /etc/profile.d/jdk.sh with the following lines:
+Set the $EXIST_HOME system environment variable by creating the file /etc/profile.d/exist.sh with the following lines:
 
   * export EXIST_HOME=/opt/exist 
 
